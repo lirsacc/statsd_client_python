@@ -51,6 +51,13 @@ GetMetricsInStatsd>`_.
 
     """
 
+    def format_tags(self, tags: Mapping[str, str]) -> str:
+        return "#%s" % ",".join(
+            # Dogstatsd supports tag without value.
+            "%s:%s" % (key, value) if value else key
+            for key, value in tags.items()
+        )
+
     def serialize(
         self,
         metric_name: str,
@@ -64,14 +71,7 @@ GetMetricsInStatsd>`_.
             value,
             metric_type,
             "|@%s" % sample_rate if sample_rate < 1 else "",
-            "#%s"
-            % ",".join(
-                # Dogstatsd supports tag without value.
-                "%s:%s" % (key, value) if value else key
-                for key, value in tags.items()
-            )
-            if tags
-            else "",
+            self.format_tags(tags) if tags else "",
         )
 
 

@@ -36,16 +36,19 @@ class BaseStatsdClient(abc.ABC):
         self,
         *,
         namespace: Optional[str] = None,
-        default_tags: Optional[Mapping[str, str]] = None,
-        default_sample_rate: int = 1,
+        tags: Optional[Mapping[str, str]] = None,
+        sample_rate: int = 1,
         serializer_cls: Optional[TSerializer] = None,
     ) -> None:
         """
         Initialize a Statsd client.
         """
+        if not (0 <= sample_rate <= 1):
+            raise ValueError("sample_rate must be between 0 and 1.")
+
         self.prefix = "%s." % namespace if namespace else ""
-        self.default_tags = default_tags or {}
-        self.default_sample_rate = default_sample_rate
+        self.default_tags = tags or {}
+        self.default_sample_rate = sample_rate
         self.serializer = (
             DefaultSerializer() if serializer_cls is None else serializer_cls()
         )
@@ -61,12 +64,13 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> None:
-        if not (0 <= sample_rate <= 1):
-            raise ValueError("sample_rate must be between 0 and 1.")
-
         sample_rate = (
             sample_rate if sample_rate is not None else self.default_sample_rate
         )
+
+        if not (0 <= sample_rate <= 1):
+            raise ValueError("sample_rate must be between 0 and 1.")
+
         if sample_rate < 1 and random.random() > sample_rate:
             return
 
@@ -98,19 +102,25 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> None:
-        self.emit(name, "c", "-%s" % value, tags=tags, sample_rate=sample_rate)
+        self.emit(
+            name,
+            "c",
+            str(-1 * value),
+            tags=tags,
+            sample_rate=sample_rate,
+        )
 
     def gauge(
         self,
         name: str,
-        value: float,
+        value: int,
         *,
         is_update: bool = False,
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> None:
         if is_update:
-            _value = "%s%s" % ("+" if value >= 0 else "-", value)
+            _value = "%s%s" % ("+" if value >= 0 else "", value)
         else:
             _value = str(value)
         self.emit(name, "g", _value, tags=tags, sample_rate=sample_rate)
@@ -134,7 +144,7 @@ class BaseStatsdClient(abc.ABC):
     ) -> Callable[[TCallable], TCallable]:
         def decorator(fn: TCallable) -> TCallable:
             @functools.wraps(fn)
-            def wrapped(self, *args, **kwargs):
+            def wrapped(*args, **kwargs):
                 with self.timer(name, tags=tags):
                     return fn(*args, **kwargs)
 
