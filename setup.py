@@ -21,7 +21,7 @@ def run_setup():
         long_description=readme,
         long_description_content_type="text/markdown",
         author="Charles Lirsac",
-        author_email="code@lirsac.me",
+        author_email="c.lirsac@gmail.com",
         url="https://github.com/lirsacc/statsd_client_python",
         license="MIT",
         keywords="statsd metrics",
@@ -43,9 +43,14 @@ def run_setup():
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
+            "Typing :: Typed",
             "Topic :: Software Development :: Libraries",
             "Topic :: Software Development :: Libraries :: Python Modules",
         ],
+        project_urls={
+            "Bug Reports": "https://github.com/lirsacc/statsd_client_python/issues",
+            "Source": "https://github.com/lirsacc/statsd_client_python",
+        },
     )
 
 
