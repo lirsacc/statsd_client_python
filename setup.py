@@ -15,7 +15,7 @@ def run_setup():
         readme = "\n" + f.read()
 
     setuptools.setup(
-        name="statsd_client",
+        name="statsd_python",
         version=_get_version(os.path.join(DIR, "src", "statsd", "version.py")),
         description="",
         long_description=readme,
