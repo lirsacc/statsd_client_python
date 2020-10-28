@@ -1,9 +1,10 @@
+import logging
 from typing import Any, Dict, List, Tuple
 from unittest import mock
 
 import pytest
 
-from statsd import BaseStatsdClient, DogstatsdSerializer
+from statsd import BaseStatsdClient, DebugStatsdClient, DogstatsdSerializer
 
 
 class MockClient(BaseStatsdClient):
@@ -163,3 +164,56 @@ def test_timed_decorator():
         fn()
 
     client.mock.assert_called_once_with("foo:12294|ms#foo:1")
+
+
+@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+def test_debug_client(
+    method: str,
+    args: Tuple[Any, ...],
+    kwargs: Dict[str, Any],
+    expected: str,
+    caplog: Any,
+) -> None:
+    mock_inner = mock.Mock()
+    client = DebugStatsdClient(inner=mock_inner)
+    with caplog.at_level(logging.INFO, logger="statsd"):
+        getattr(client, method)(*args, **kwargs)
+
+    mock_inner._emit_packet.assert_called_once_with(expected)
+
+    assert len(caplog.records) == 1
+    assert expected in caplog.text
+
+
+@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+def test_debug_client_no_inner(
+    method: str,
+    args: Tuple[Any, ...],
+    kwargs: Dict[str, Any],
+    expected: str,
+    caplog: Any,
+) -> None:
+    client = DebugStatsdClient()
+    with caplog.at_level(logging.INFO, logger="statsd"):
+        getattr(client, method)(*args, **kwargs)
+
+    assert len(caplog.records) == 1
+    assert expected in caplog.text
+
+
+@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+def test_debug_client_custom_logger_and_level(
+    method: str,
+    args: Tuple[Any, ...],
+    kwargs: Dict[str, Any],
+    expected: str,
+    caplog: Any,
+) -> None:
+    client = DebugStatsdClient(
+        logger=logging.getLogger("foo"), level=logging.DEBUG
+    )
+    with caplog.at_level(logging.DEBUG, logger="foo"):
+        getattr(client, method)(*args, **kwargs)
+
+    assert len(caplog.records) == 1
+    assert expected in caplog.text

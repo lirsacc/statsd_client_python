@@ -211,9 +211,14 @@ class UDPStatsdClient(BaseStatsdClient):
     UDP Cliemt which should work against most Statsd server implementations.
     """
 
+    # Standard default for Statsd.
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = 8125
-    DEFAULT_MAX_BUFFER_SIZE = 512
+
+    # Default taken from Statsd documentation as a good value for most intranets
+    # setups. Should be lower if the remote is going to be accessed over the
+    # internet.
+    DEFAULT_MAX_BUFFER_SIZE = 1432
 
     def __init__(
         self,
@@ -225,7 +230,7 @@ class UDPStatsdClient(BaseStatsdClient):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.max_buffer_size = max_buffer_size
         self.buffer: List[bytes] = []
         self.buffer_size = 0
@@ -236,6 +241,7 @@ class UDPStatsdClient(BaseStatsdClient):
         self.port = port
         self.sock: Optional[socket.socket] = None
 
+    # Lazy initialisation of the socket.
     def _socket(self) -> socket.socket:
         if self.sock is None:
             with self.lock:
