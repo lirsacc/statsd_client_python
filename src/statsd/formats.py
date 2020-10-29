@@ -1,5 +1,14 @@
 import abc
+import re
 from typing import Mapping
+
+
+# Global exclusion based on a mix of what Graphite and Datadog support. Some
+# implementation support unicode but I feel that's a rare enough case that its
+# fair to drop them for now. Can always make it os it's controlled through a
+# flag if required.
+# This is applied to both key and value for simplicity.
+INVALID_TAG_CHARACTERS_RE = re.compile(r"[^\w\-/\.]", flags=re.ASCII)
 
 
 class Serializer(abc.ABC):
@@ -42,20 +51,38 @@ class DogstatsdSerializer(Serializer):
     Add support for serializing metrics following Datadog's `Dogstatsd format
     <https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/>`_.
 
+    Format:
+
+    - The start of the packet follows the default statsd format.
+    - Tags:
+
+        - Are appended to the line, starting with ``|#``.
+        - Individual tags are separated by a comma.
+        - Name and value are separated by a colon.
+        - Tags without value are supported.
+
+    Example: ``my_metric:123456|ms|@0.4|#foo:1,bar,baz:some_value``
+
     This is the default format given it is fairly common, for example:
 
     - `Splunk <https://docs.splunk.com/Documentation/Splunk/8.1.0/Metrics/\
 GetMetricsInStatsd>`_.
     - Etsy's Statsd supports it alongside the Graphite format.
     - It's the format used by `Vector <https://vector.dev/>`_.
-
     """
 
     def format_tags(self, tags: Mapping[str, str]) -> str:
         return "|#%s" % ",".join(
             # Dogstatsd supports tag without value.
-            "%s:%s" % (key, value) if value else key
+            "%s:%s"
+            % (
+                re.sub(INVALID_TAG_CHARACTERS_RE, "-", key),
+                re.sub(INVALID_TAG_CHARACTERS_RE, "-", value),
+            )
+            if value
+            else key
             for key, value in tags.items()
+            if key
         )
 
     def serialize(
@@ -95,7 +122,15 @@ class _AppendToNameSerializer(Serializer):
             self.separator.join(
                 [
                     metric_name,
-                    *("%s=%s" % (key, value) for key, value in tags.items()),
+                    *(
+                        "%s=%s"
+                        % (
+                            re.sub(INVALID_TAG_CHARACTERS_RE, "-", key),
+                            re.sub(INVALID_TAG_CHARACTERS_RE, "-", value),
+                        )
+                        for key, value in tags.items()
+                        if key
+                    ),
                 ]
             ),
             value,
