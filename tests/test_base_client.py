@@ -147,7 +147,7 @@ def test_metric_tag_overrides_default_tags():
         "increment",
         ("foo",),
         {"tags": {"foo": "2", "baz": "other_value"}},
-        "foo:1|c#foo:2,bar:value,baz:other_value",
+        "foo:1|c|#foo:2,bar:value,baz:other_value",
     )
 
 
@@ -163,7 +163,7 @@ def test_timed_decorator():
     ):
         fn()
 
-    client.mock.assert_called_once_with("foo:12294|ms#foo:1")
+    client.mock.assert_called_once_with("foo:12294|ms|#foo:1")
 
 
 @pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)

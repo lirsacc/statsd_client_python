@@ -52,7 +52,7 @@ GetMetricsInStatsd>`_.
     """
 
     def format_tags(self, tags: Mapping[str, str]) -> str:
-        return "#%s" % ",".join(
+        return "|#%s" % ",".join(
             # Dogstatsd supports tag without value.
             "%s:%s" % (key, value) if value else key
             for key, value in tags.items()

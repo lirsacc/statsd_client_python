@@ -40,9 +40,9 @@ CASE_EMPTY_TAG: SerializeInput = (
     "params,expected",
     [
         (CASE_SIMPLE, "my_metric:1|c"),
-        (CASE_TAG_AND_RATE, "my_metric:123456|ms|@0.4#foo:1,bar:some_value"),
-        (CASE_TAG_NO_RATE, "my_metric:123456|ms#foo:1,bar:some_value"),
-        (CASE_EMPTY_TAG, "my_metric:123456|ms#foo:1,bar,baz:some_value"),
+        (CASE_TAG_AND_RATE, "my_metric:123456|ms|@0.4|#foo:1,bar:some_value"),
+        (CASE_TAG_NO_RATE, "my_metric:123456|ms|#foo:1,bar:some_value"),
+        (CASE_EMPTY_TAG, "my_metric:123456|ms|#foo:1,bar,baz:some_value"),
     ],
 )
 def test_dogstatsd_format_ok(params: SerializeInput, expected: str) -> None:
