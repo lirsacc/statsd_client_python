@@ -7,22 +7,12 @@ import random
 import socket
 import threading
 import time
-from typing import (
-    Any,
-    Callable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Type,
-    TypeVar,
-)
+from typing import Any, Callable, Iterator, List, Mapping, Optional, TypeVar
 
 from statsd.formats import DefaultSerializer, Serializer
 
 
 TCallable = TypeVar("TCallable", bound=Callable[..., Any])
-TSerializer = TypeVar("TSerializer", bound=Type[Serializer])
 
 logger = logging.getLogger("statsd")
 
@@ -38,7 +28,7 @@ class BaseStatsdClient(abc.ABC):
         namespace: Optional[str] = None,
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: int = 1,
-        serializer_cls: Optional[TSerializer] = None,
+        serializer: Optional[Serializer] = None,
     ) -> None:
         """
         Initialize a Statsd client.
@@ -50,7 +40,7 @@ class BaseStatsdClient(abc.ABC):
         self.default_tags = tags or {}
         self.default_sample_rate = sample_rate
         self.serializer = (
-            DefaultSerializer() if serializer_cls is None else serializer_cls()
+            DefaultSerializer() if serializer is None else serializer
         )
 
     # Shared interface
