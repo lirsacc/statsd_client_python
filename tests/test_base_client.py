@@ -4,7 +4,8 @@ from unittest import mock
 
 import pytest
 
-from statsd import BaseStatsdClient, DebugStatsdClient, DogstatsdSerializer
+from statsd import BaseStatsdClient, DebugStatsdClient
+from statsd.formats import DogstatsdSerializer
 
 
 class MockClient(BaseStatsdClient):

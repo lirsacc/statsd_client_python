@@ -17,17 +17,22 @@ class Serializer(abc.ABC):
 
     This class is used when sending packet to accomodate differing statsd
     immplementations. This is mostly used to handle the different ways tags are
-    handled.
+    supported across implementations.
 
-    Serializer implementations should also validate the validity of the metric
-    being sent against the formats they supports.
+    Serializer implementations should also validate the metric and tags being
+    sent against the formats they supports.
 
-    This library provides 3 different formats which cover most of the
+    This library provides 3 different formats which should cover most of the
     implementations I've come across so far:
 
     - :class:`~statsd.formats.DogstatsdSerializer` (default)
     - :class:`~statsd.formats.TelegrafSerializer`
     - :class:`~statsd.formats.GraphiteSerializer`
+
+    .. note::
+        This mechanism is primarily used to supported tags, but it technically
+        covers the entire line protocol serialisation (except batching) and can
+        be used to support different server implementations.
     """
 
     def serialize(
@@ -145,6 +150,19 @@ class TelegrafSerializer(_AppendToNameSerializer):
 
     Add support for serializing metrics following `Telegraf's format
     <https://github.com/influxdata/telegraf/blob/master/plugins/inputs/statsd/>`_.
+
+    Format:
+
+    - Tags are added to the name section of the packet; trest of the packet
+      follows the default statsd format.
+    - Tags:
+
+        - Are appended to the name, separated from the name by a comma.
+        - Individual tags are separated by a comma.
+        - Name and value are separated by an equal sign.
+        - Tags without value are not supported.
+
+    Example: ``my_metric,foo=1,bar=some_value:123456|ms|@0.4``
     """
 
     separator = ","
@@ -156,9 +174,23 @@ class GraphiteSerializer(_AppendToNameSerializer):
 
     Add support for serializing metrics following `Graphites's format
     <https://graphite.readthedocs.io/en/latest/tags.html>`_.
+
+    Format:
+
+    - Tags are added to the name section of the packet; trest of the packet
+      follows the default statsd format.
+    - Tags:
+
+        - Are appended to the name, separated from the name by a semi-colon.
+        - Individual tags are separated by a semi-colon.
+        - Name and value are separated by an equal sign.
+        - Tags without value are not supported.
+
+    Example: ``my_metric;foo=1;bar=some_value:123456|ms|@0.4``
     """
 
     separator = ";"
 
 
+#: Default serializer
 DefaultSerializer = DogstatsdSerializer

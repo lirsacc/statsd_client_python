@@ -76,7 +76,7 @@ def test_buffering(receiver_socket: socket.socket) -> None:
     assert _read_from_socket(receiver_socket) == ""
 
     # This should flush the remaining entry.
-    client.close()
+    client._close()
 
     assert _read_from_socket(receiver_socket) == "foo:5|c"
 
@@ -131,7 +131,7 @@ def test_unexpected_exceptions_are_logged_not_raised(
 def test_close_before_anything_happened(receiver_socket: socket.socket) -> None:
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
-    client.close()
+    client._close()
 
 
 def test_call_after_close_raises(
@@ -139,7 +139,7 @@ def test_call_after_close_raises(
 ) -> None:
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
-    client.close()
+    client._close()
 
     with pytest.raises(RuntimeError):
         client.increment("foo", 1)

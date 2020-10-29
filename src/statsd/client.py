@@ -20,6 +20,33 @@ logger = logging.getLogger("statsd")
 class BaseStatsdClient(abc.ABC):
     """
     Generic Statsd client interface.
+
+    This class exposes the public interface and takes care of packet formatting
+    as well as sampling. It does not actually send packets anywhere, which is
+    left to concrete subclasses.
+
+    .. warning:
+        This class makes no assumption around the underlying implementation
+        behaviour. Delivery guarantees, thread safety, robustness to error are
+        all left to specific implementations.
+
+    :param namespace: Optional prefix to add all metrics.
+
+        If this is set to ``foo``, then all metrics will be prefixed with
+        ``foo.``; so for instance sending out ``bar`` would actually be sent
+        as ``foo.bar``.
+
+    :param tags: Default tags applied to all metrics.
+
+    :param sample_rate: Default sampling rate applied to all metrics.
+        This should be between 0 and 1 inclusive, 1 meaning that all metrics
+        will be forwarded and 0 that none will be forwarded.
+        Defaults to 1.
+
+    :param serializer: A serializer defining the wire format of the metrics.
+        This allows supporting diverging server implementation such as how
+        Telegraf and Dogstatsd handle tags. See :mod:`statsd.formats` for
+        more details.
     """
 
     def __init__(
@@ -30,9 +57,6 @@ class BaseStatsdClient(abc.ABC):
         sample_rate: int = 1,
         serializer: Optional[Serializer] = None,
     ) -> None:
-        """
-        Initialize a Statsd client.
-        """
         if not (0 <= sample_rate <= 1):
             raise ValueError("sample_rate must be between 0 and 1.")
 
@@ -54,6 +78,29 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> None:
+        """
+        Send a metric to the underlying implementation.
+
+        This method takes care sampling metrics and builds the actual packet
+        that will be sent to the server; implementations are purely responsible
+        for sending the packet and have nothing to do with the Statsd format.
+
+        :param metric_name: Metric name. This will be namespaced if the client
+            is namespace.
+
+        :param metric_type: One of the supported Statsd metric types, counter
+            ("c"), gauge ("g"), timing ("ms") and set ("s").
+
+        :param value: etric value formatted according to the rules for the type.
+
+        :param tags: A mapping of tag name to their value. This will be merged
+            with the client's tags if relevant, overriding any tag already set.
+
+        :param sample_rate: Sampling rate applied to this particular call.
+            Should be between 0 and 1 inclusive, 1 meaning that all metrics
+            will be forwarded and 0 that none will be forwarded. If left
+            unspecified this will use the client's sample rate.
+        """
         sample_rate = (
             sample_rate if sample_rate is not None else self.default_sample_rate
         )
@@ -82,6 +129,11 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> None:
+        """
+        Increment a counter by the specified value (defaults to 1).
+
+        See :meth:`emit` for details on optional parameters.
+        """
         self.emit(name, "c", str(value), tags=tags, sample_rate=sample_rate)
 
     def decrement(
@@ -92,6 +144,11 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> None:
+        """
+        Decrement a counter by the specified value (defaults to 1).
+
+        See :meth:`emit` for details on optional parameters.
+        """
         self.emit(
             name,
             "c",
@@ -109,6 +166,20 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> None:
+        """
+        Update a gauge value.
+
+        The ``is_update`` parameter can be used to control whether this sets the
+        value of the gauge or sends a gauge delta packet (prepended with ``+``
+        or ``-``).
+
+        .. warning:
+            Not all Statsd server implementations support Gauge deltas. Notably
+            Datadog protocol does not (see:
+            https://github.com/DataDog/dd-agent/issues/573 for more info).
+
+        See :meth:`emit` for details on other parameters.
+        """
         if is_update:
             _value = "%s%s" % ("+" if value >= 0 else "", value)
         else:
@@ -123,6 +194,13 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> None:
+        """
+        Send a timing value.
+
+        The ``value`` is expected to be in milliseconds.
+
+        See :meth:`emit` for details on optional parameters.
+        """
         self.emit(name, "ms", str(value), tags=tags, sample_rate=sample_rate)
 
     def timed(
@@ -132,6 +210,19 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> Callable[[TCallable], TCallable]:
+        """
+        Decorator to record a function's execution time.
+
+        This just wraps the function call with a :meth:`timer` context manager.
+
+        If a name is not provided, the function name will be used.
+
+        >>> client = StatsdClient()
+        >>> @client.timed()
+        ... def do_something():
+        ...     pass
+        """
+
         def decorator(fn: TCallable) -> TCallable:
             # TODO: Should the fallback include the module? Class (for methods)?
             # or func.__name__
@@ -154,6 +245,13 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> Iterator[None]:
+        """
+        Context manager to ,easure the execution time of a block.
+
+        >>> client = StatsdClient()
+        >>> with client.timer("download_duration"):
+        ...     pass
+        """
         start = time.perf_counter()
         try:
             yield
@@ -175,12 +273,21 @@ class BaseStatsdClient(abc.ABC):
 
     @abc.abstractmethod
     def _emit_packet(self, packet: str) -> None:
+        """
+        Send implementation.
+
+        This method is responsible for actually sending the formatted packets
+        and should be implemented by all subclasses.
+        """
         raise NotImplementedError()
 
 
 class DebugStatsdClient(BaseStatsdClient):
     """
     Verbose client for development or debugging purposes.
+
+    All Statsd packets will be logged and optionally forwarded to a wrapped
+    client.
     """
 
     def __init__(
@@ -188,8 +295,20 @@ class DebugStatsdClient(BaseStatsdClient):
         level: int = logging.INFO,
         logger: logging.Logger = logger,
         inner: Optional[BaseStatsdClient] = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__()
+        """
+        Initialize DebugStatsdClient.
+
+        :param level: Log level to use, defaults to ``INFO``.
+
+        :param logger: Logger instance to use, defaults to ``statsd``.
+
+        :param inner: Wrapped client.
+
+        :param \**kwargs: Extra arguments forwarded to :class:`BaseStatsdClient`.
+        """  # noqa: W605
+        super().__init__(**kwargs)
         self.level = level
         self.logger = logger
         self.inner = inner
@@ -202,8 +321,25 @@ class DebugStatsdClient(BaseStatsdClient):
 
 class UDPStatsdClient(BaseStatsdClient):
     """
-    UDP Cliemt which should work against most Statsd server implementations.
-    """
+    UDP Client implementation.
+
+    This client should be thread safe.
+
+    :param host: Hostname for the Statsd server, defaults to localhost.
+
+    :param port: Port for the statsd server, defaults to 8125.
+
+    :param max_buffer_size: The maximum amount of data to buffer before sending
+        to the Statsd server.
+
+        This is an optimisation parameter; to avoid
+        sending too many individual packets over the network. You should keep
+        this in a range that your network MTU can handle.
+
+        Set this to `0` to disable buffering.
+
+    :param \**kwargs: Extra arguments forwarded to :class:`BaseStatsdClient`.
+    """  # noqa: W605
 
     # Standard default for Statsd.
     DEFAULT_HOST = "localhost"
@@ -219,13 +355,13 @@ class UDPStatsdClient(BaseStatsdClient):
         *,
         host: str = DEFAULT_HOST,
         port: int = DEFAULT_PORT,
-        max_buffer_size: Optional[int] = DEFAULT_MAX_BUFFER_SIZE,
+        max_buffer_size: int = DEFAULT_MAX_BUFFER_SIZE,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
 
         self.lock = threading.RLock()
-        self.max_buffer_size = max_buffer_size
+        self.max_buffer_size = max(max_buffer_size, 0)
         self.buffer: List[bytes] = []
         self.buffer_size = 0
 
@@ -235,8 +371,10 @@ class UDPStatsdClient(BaseStatsdClient):
         self.port = port
         self.sock: Optional[socket.socket] = None
 
-    # Lazy initialisation of the socket.
     def _socket(self) -> socket.socket:
+        """
+        Lazily instantiate the socket, this should only happen once.
+        """
         if self.sock is None:
             with self.lock:
                 family, _, _, _, addr = socket.getaddrinfo(
@@ -251,18 +389,22 @@ class UDPStatsdClient(BaseStatsdClient):
             return self.sock
 
     def _flush_buffer(self) -> None:
-        if not self.buffer:
-            return
+        """
+        If there is data in the buffer, send it and reset the buffer.
+        """
+        with self.lock:
+            if not self.buffer:
+                return
 
-        self._send(b"\n".join(self.buffer))
-        self.buffer[:] = []
-        self.buffer_size = 0
+            self._send(b"\n".join(self.buffer))
+            self.buffer[:] = []
+            self.buffer_size = 0
 
     def _emit_packet(self, packet: str) -> None:
+        """
+        Handle metric packets, buffering and flusing the buffer accordingly.
+        """
         with self.lock:
-            if self.closed:
-                raise RuntimeError("Can't emit metric after closing socket.")
-
             msg = packet.encode("ascii")
 
             # Buffering disabled, send immediately.
@@ -283,18 +425,31 @@ class UDPStatsdClient(BaseStatsdClient):
             self.buffer_size += msg_size
 
     def _send(self, data: bytes) -> None:
+        """
+        Actually send data.
+        """
+        # No lock this is only called from locked region. No guarantees if this
+        # is called manually.
+        if self.closed:
+            raise RuntimeError("Can't emit metric after closing socket.")
+
         try:
             sent = self._socket().send(data)
             if sent < len(data):
                 raise socket.error(errno.EPIPE, "Broken pipe")
-        # TODO: Can we handle error conditions better?
         # We should not break callsites when metrics fail to send so log instead.
+        # TODO: Can we handle error conditions better?
+        # TODO: Should this be configurable?
         except socket.error as err:
             logger.warning("Error sending packet: %s", err)
         except Exception as err:
             logger.error("Unexpected error: %s", err, exc_info=True)
 
-    def close(self) -> None:
+    def _close(self) -> None:
+        """
+        Close the underlying socket and refuse any new attempt to send packets.
+        This will first flush the current buffer if there is data left to send.
+        """
         with self.lock:
             self._flush_buffer()
             try:
@@ -307,8 +462,8 @@ class UDPStatsdClient(BaseStatsdClient):
                 self.closed = True
 
     def __del__(self) -> None:
-        self.close()
+        self._close()
 
 
-# Default is the standard UDP implementation.
+#: Default client. This should work with most statsd servers implementations.
 StatsdClient = UDPStatsdClient

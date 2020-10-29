@@ -5,6 +5,8 @@ Python Statsd Client
 
 This is an implementation of a [Statsd](https://github.com/statsd/statsd) client for Python.
 
+For usage see [documentation](./docs/source/docs.rst).
+
 Motivation
 ----------
 
@@ -15,12 +17,9 @@ I was looking for a generic Statsd client with tags support to interact with var
 - There a are a few more available on PyPi that likely work, but most of the ones I've checked haven't been updated in a while, are not documented and don't support tags.
 - [`datadogpy`](https://datadogpy.readthedocs.io/en/latest/) could be a solid solution, but I'd rather avoind pulling the full Datadog client library in projects where I don't use datadog. It also exposes some non standard metric types, and while I can always not use them I'd prefer a generic solution (ignoring tags which, while not standardized, are supported by most statsd servers).
 
-TODO
-----
+Development
+-----------
 
-- [ ] Minimal docs
-- [x] Tests the UDP client
-- [ ] Unix socket client
-- [ ] Publish package
-- [x] Test on supported Python versions
-- [ ] CI
+- All development dependencies are defined in [requirements-dev.txt](./requirements-dev.txt).
+- All tests and linting steps are defined in [tox.ini](./tox.ini), you can run the all the checks with `tox`.
+- Code is expected to be formatted with `black` and `isort`, you can run the formatters with `tox -e fmt`.
