@@ -127,15 +127,19 @@ class BaseStatsdClient(abc.ABC):
 
     def timed(
         self,
-        name: str,
+        name: Optional[str] = None,
         *,
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
     ) -> Callable[[TCallable], TCallable]:
         def decorator(fn: TCallable) -> TCallable:
+            # TODO: Should the fallback include the module? Class (for methods)?
+            # or func.__name__
+            metric_name = name or fn.__name__
+
             @functools.wraps(fn)
             def wrapped(*args, **kwargs):
-                with self.timer(name, tags=tags):
+                with self.timer(metric_name, tags=tags):
                     return fn(*args, **kwargs)
 
             return wrapped  # type: ignore
