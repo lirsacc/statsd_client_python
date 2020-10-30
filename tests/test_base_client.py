@@ -106,6 +106,12 @@ def test_sample_rate_in():
         )
 
 
+def test_validates_invalid_metric_type():
+    client = MockClient()
+    with pytest.raises(ValueError):
+        client.emit("foo", "h", 54)
+
+
 def test_default_sample_rate_out():
     client = MockClient(sample_rate=0.5)
     with mock.patch("random.random", side_effect=lambda: 0.75):

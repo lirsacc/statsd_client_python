@@ -59,6 +59,8 @@ class BaseStatsdClient(abc.ABC):
         more details.
     """
 
+    KNOWN_METRIC_TYPES = ("c", "g", "s", "ms")
+
     def __init__(
         self,
         *,
@@ -138,6 +140,9 @@ class BaseStatsdClient(abc.ABC):
         sample_rate: float,
         tags: Optional[Mapping[str, str]],
     ) -> str:
+        if metric_type not in self.KNOWN_METRIC_TYPES:
+            raise ValueError("Invalid metric type %s" % metric_type)
+
         return self.serializer.serialize(
             (
                 ("%s.%s" % (self.namespace, metric_name))
