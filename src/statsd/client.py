@@ -1,5 +1,6 @@
 import abc
 import contextlib
+import datetime
 import errno
 import functools
 import logging
@@ -7,7 +8,16 @@ import random
 import socket
 import threading
 import time
-from typing import Any, Callable, Iterator, List, Mapping, Optional, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 from statsd.formats import DefaultSerializer, Serializer
 
@@ -214,7 +224,7 @@ class BaseStatsdClient(abc.ABC):
     def timing(
         self,
         name: str,
-        value: int,
+        value: Union[int, datetime.timedelta],
         *,
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
@@ -226,6 +236,11 @@ class BaseStatsdClient(abc.ABC):
 
         See :meth:`emit` for details on optional parameters.
         """
+        # TODO: Some server implementation support higher resolution timers
+        # using floats. We could support this with a flag.
+        if isinstance(value, datetime.timedelta):
+            value = int(1000 * value.total_seconds())
+
         self.emit(name, "ms", str(value), tags=tags, sample_rate=sample_rate)
 
     def timed(

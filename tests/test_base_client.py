@@ -1,3 +1,4 @@
+import datetime
 import logging
 from typing import Any, Dict, List, Tuple, Union
 from unittest import mock
@@ -63,6 +64,7 @@ SIMPLE_TEST_CASES: List[
     ("gauge", ("foo", -10), {"is_update": True}, "foo:-10|g"),
     ("set", ("foo", 42), {}, "foo:42|s"),
     ("timing", ("foo", 1234), {}, "foo:1234|ms"),
+    ("timing", ("foo", datetime.timedelta(minutes=17)), {}, "foo:1020000|ms"),
 ]
 
 
