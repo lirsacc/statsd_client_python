@@ -1,11 +1,10 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 from unittest import mock
 
 import pytest
 
 from statsd import BaseStatsdClient, DebugStatsdClient
-from statsd.formats import DogstatsdSerializer
 
 
 class MockClient(BaseStatsdClient):
@@ -17,16 +16,24 @@ class MockClient(BaseStatsdClient):
         self.mock(packet)
 
 
+def _assert_calls(fn, expected):
+    if isinstance(expected, list):
+        assert len(fn.call_args_list) == len(expected)
+        assert fn.call_args_list == [mock.call(x) for x in expected]
+    else:
+        fn.assert_called_once_with(expected)
+
+
 def assert_emits(
     client: MockClient,
     method: str,
     args: Tuple[Any, ...],
     kwargs: Dict[str, Any],
-    expected: str,
+    expected: Union[List[str], str],
 ) -> None:
     client.mock.reset_mock()
     getattr(client, method)(*args, **kwargs)
-    client.mock.assert_called_once_with(expected)
+    _assert_calls(client.mock, expected)
 
 
 def assert_does_not_emit(
@@ -40,7 +47,9 @@ def assert_does_not_emit(
     client.mock.assert_not_called()
 
 
-SIMPLE_TEST_CASES: List[Tuple[str, Tuple[Any, ...], Dict[str, Any], str]] = [
+SIMPLE_TEST_CASES: List[
+    Tuple[str, Tuple[Any, ...], Dict[str, Any], Union[List[str], str]]
+] = [
     ("increment", ("foo",), {}, "foo:1|c"),
     ("increment", ("foo", 10), {}, "foo:10|c"),
     ("increment", ("foo", -2), {}, "foo:-2|c"),
@@ -49,7 +58,7 @@ SIMPLE_TEST_CASES: List[Tuple[str, Tuple[Any, ...], Dict[str, Any], str]] = [
     ("decrement", ("foo", -2), {}, "foo:2|c"),
     ("gauge", ("foo", 42), {}, "foo:42|g"),
     ("gauge", ("foo", 256_128), {}, "foo:256128|g"),
-    ("gauge", ("foo", -512), {}, "foo:-512|g"),
+    ("gauge", ("foo", -512), {}, ["foo:0|g", "foo:-512|g"]),
     ("gauge", ("foo", 10), {"is_update": True}, "foo:+10|g"),
     ("gauge", ("foo", -10), {"is_update": True}, "foo:-10|g"),
     ("set", ("foo", 42), {}, "foo:42|s"),
@@ -113,32 +122,42 @@ def test_default_sample_rate_in():
         )
 
 
-@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+@pytest.mark.parametrize(
+    "method,args,kwargs,expected",
+    [
+        ("increment", ("foo",), {}, "foo:1|c|#foo:1,bar:value"),
+        (
+            "gauge",
+            ("foo", -10),
+            {},
+            ["foo:0|g|#foo:1,bar:value", "foo:-10|g|#foo:1,bar:value"],
+        ),
+    ],
+)
 def test_basic_with_tags(
     method: str, args: Tuple[Any, ...], kwargs: Dict[str, Any], expected: str
 ) -> None:
     tags = {"foo": "1", "bar": "value"}
-    assert_emits(
-        MockClient(),
-        method,
-        args,
-        {**kwargs, "tags": tags},
-        expected + DogstatsdSerializer().format_tags(tags),
-    )
+    assert_emits(MockClient(), method, args, {**kwargs, "tags": tags}, expected)
 
 
-@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+@pytest.mark.parametrize(
+    "method,args,kwargs,expected",
+    [
+        ("increment", ("foo",), {}, "foo:1|c|#foo:1,bar:value"),
+        (
+            "gauge",
+            ("foo", -10),
+            {},
+            ["foo:0|g|#foo:1,bar:value", "foo:-10|g|#foo:1,bar:value"],
+        ),
+    ],
+)
 def test_default_tags(
     method: str, args: Tuple[Any, ...], kwargs: Dict[str, Any], expected: str
 ) -> None:
     tags = {"foo": "1", "bar": "value"}
-    assert_emits(
-        MockClient(tags=tags),
-        method,
-        args,
-        {**kwargs},
-        expected + DogstatsdSerializer().format_tags(tags),
-    )
+    assert_emits(MockClient(tags=tags), method, args, {**kwargs}, expected)
 
 
 def test_metric_tag_overrides_default_tags():
@@ -168,38 +187,37 @@ def test_timed_decorator():
 
 
 @pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
-def test_debug_client(
-    method: str,
-    args: Tuple[Any, ...],
-    kwargs: Dict[str, Any],
-    expected: str,
-    caplog: Any,
-) -> None:
-    mock_inner = mock.Mock()
-    client = DebugStatsdClient(inner=mock_inner)
-    with caplog.at_level(logging.INFO, logger="statsd"):
-        getattr(client, method)(*args, **kwargs)
-
-    mock_inner._emit_packet.assert_called_once_with(expected)
-
-    assert len(caplog.records) == 1
-    assert expected in caplog.text
-
-
-@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
 def test_debug_client_no_inner(
     method: str,
     args: Tuple[Any, ...],
     kwargs: Dict[str, Any],
-    expected: str,
+    expected: Union[List[str], str],
     caplog: Any,
 ) -> None:
     client = DebugStatsdClient()
     with caplog.at_level(logging.INFO, logger="statsd"):
         getattr(client, method)(*args, **kwargs)
 
-    assert len(caplog.records) == 1
-    assert expected in caplog.text
+    if isinstance(expected, list):
+        assert len(caplog.records) == len(expected)
+        for x in expected:
+            assert x in caplog.text
+    else:
+        assert len(caplog.records) == 1
+        assert expected in caplog.text
+
+
+@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+def test_debug_client(
+    method: str,
+    args: Tuple[Any, ...],
+    kwargs: Dict[str, Any],
+    expected: str,
+) -> None:
+    mock_inner = mock.Mock()
+    client = DebugStatsdClient(inner=mock_inner)
+    getattr(client, method)(*args, **kwargs)
+    _assert_calls(mock_inner._emit_packet, expected)
 
 
 @pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
@@ -207,7 +225,7 @@ def test_debug_client_custom_logger_and_level(
     method: str,
     args: Tuple[Any, ...],
     kwargs: Dict[str, Any],
-    expected: str,
+    expected: Union[List[str], str],
     caplog: Any,
 ) -> None:
     client = DebugStatsdClient(
@@ -216,5 +234,10 @@ def test_debug_client_custom_logger_and_level(
     with caplog.at_level(logging.DEBUG, logger="foo"):
         getattr(client, method)(*args, **kwargs)
 
-    assert len(caplog.records) == 1
-    assert expected in caplog.text
+    if isinstance(expected, list):
+        assert len(caplog.records) == len(expected)
+        for x in expected:
+            assert x in caplog.text
+    else:
+        assert len(caplog.records) == 1
+        assert expected in caplog.text

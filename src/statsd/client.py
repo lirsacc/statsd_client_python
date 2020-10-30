@@ -54,13 +54,13 @@ class BaseStatsdClient(abc.ABC):
         *,
         namespace: Optional[str] = None,
         tags: Optional[Mapping[str, str]] = None,
-        sample_rate: int = 1,
+        sample_rate: float = 1,
         serializer: Optional[Serializer] = None,
     ) -> None:
         if not (0 <= sample_rate <= 1):
             raise ValueError("sample_rate must be between 0 and 1.")
 
-        self.prefix = "%s." % namespace if namespace else ""
+        self.namespace = namespace
         self.default_tags = tags or {}
         self.default_sample_rate = sample_rate
         self.serializer = (
@@ -104,22 +104,41 @@ class BaseStatsdClient(abc.ABC):
         sample_rate = (
             sample_rate if sample_rate is not None else self.default_sample_rate
         )
-
         if not (0 <= sample_rate <= 1):
             raise ValueError("sample_rate must be between 0 and 1.")
 
         if sample_rate < 1 and random.random() > sample_rate:
             return
 
-        packet = self.serializer.serialize(
-            "%s%s" % (self.prefix, metric_name),
+        self._emit_packet(
+            self.serialize_metric(
+                metric_name,
+                metric_type,
+                value,
+                sample_rate=sample_rate,
+                tags=tags,
+            )
+        )
+
+    def serialize_metric(
+        self,
+        metric_name: str,
+        metric_type: str,
+        value: str,
+        sample_rate: float,
+        tags: Optional[Mapping[str, str]],
+    ) -> str:
+        return self.serializer.serialize(
+            (
+                ("%s.%s" % (self.namespace, metric_name))
+                if self.namespace
+                else metric_name
+            ),
             metric_type,
             value,
             sample_rate=sample_rate,
             tags={**self.default_tags, **(tags or {})},
         )
-
-        self._emit_packet(packet)
 
     def increment(
         self,
@@ -184,7 +203,13 @@ class BaseStatsdClient(abc.ABC):
             _value = "%s%s" % ("+" if value >= 0 else "", value)
         else:
             _value = str(value)
-        self.emit(name, "g", _value, tags=tags, sample_rate=sample_rate)
+
+        with _Batcher(self, sample_rate=sample_rate) as batch:
+            if value < 0 and not is_update:
+                # WARN: This could be subject to race condition depending on the
+                # underlying transport and buffering settings.
+                batch.queue(name, "g", "0", tags=tags)
+            batch.queue(name, "g", _value, tags=tags)
 
     def timing(
         self,
@@ -280,6 +305,59 @@ class BaseStatsdClient(abc.ABC):
         and should be implemented by all subclasses.
         """
         raise NotImplementedError()
+
+
+class _Batcher:
+    def __init__(
+        self,
+        inner: BaseStatsdClient,
+        sample_rate: Optional[float] = None,
+    ) -> None:
+        sample_rate = (
+            sample_rate
+            if sample_rate is not None
+            else inner.default_sample_rate
+        )
+        if not (0 <= sample_rate <= 1):
+            raise ValueError("sample_rate must be between 0 and 1.")
+
+        self.sample_rate = sample_rate
+        self.batch: List[str] = []
+        self.inner = inner
+
+    def flush(self):
+        if self.sample_rate < 1 and random.random() > self.sample_rate:
+            return
+
+        if self.batch:
+            for x in self.batch:
+                self.inner._emit_packet(x)
+
+        self.batch[:] = []
+
+    def queue(
+        self,
+        metric_name: str,
+        metric_type: str,
+        value: str,
+        *,
+        tags: Optional[Mapping[str, str]] = None,
+    ) -> None:
+        self.batch.append(
+            self.inner.serialize_metric(
+                metric_name,
+                metric_type,
+                value,
+                sample_rate=self.sample_rate,
+                tags=tags,
+            )
+        )
+
+    def __enter__(self) -> "_Batcher":
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.flush()
 
 
 class DebugStatsdClient(BaseStatsdClient):
