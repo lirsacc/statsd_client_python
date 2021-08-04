@@ -134,6 +134,32 @@ def test_default_sample_rate_in():
         )
 
 
+def test_batched_messages_are_sampled_as_one_in():
+    client = MockClient(sample_rate=0.5)
+    with mock.patch("random.random", side_effect=lambda: 0.25):
+        assert_emits(
+            client,
+            "gauge",
+            ("foo", -5),
+            {},
+            [
+                "foo:0|g|@0.5",
+                "foo:-5|g|@0.5",
+            ],
+        )
+
+
+def test_batched_messages_are_sampled_as_one_out():
+    client = MockClient(sample_rate=0.5)
+    with mock.patch("random.random", side_effect=lambda: 0.75):
+        assert_does_not_emit(
+            client,
+            "gauge",
+            ("foo", -5),
+            {},
+        )
+
+
 @pytest.mark.parametrize(
     "method,args,kwargs,expected",
     [

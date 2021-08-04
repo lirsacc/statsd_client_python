@@ -358,9 +358,8 @@ class _Batcher:
         if self.sample_rate < 1 and random.random() > self.sample_rate:
             return
 
-        if self.batch:
-            for x in self.batch:
-                self.inner._emit_packet(x)
+        for x in self.batch:
+            self.inner._emit_packet(x)
 
         self.batch[:] = []
 
