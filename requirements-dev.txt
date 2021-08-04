@@ -3,9 +3,7 @@ setuptools
 wheel
 twine
 
-pytest~=6.1
-pytest-cov~=2.10
-pytest-xdist~=2.1
+-r requirements-tests.txt
 
 tox~=3.20
 

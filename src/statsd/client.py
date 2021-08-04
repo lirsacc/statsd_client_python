@@ -35,7 +35,7 @@ class BaseStatsdClient(abc.ABC):
     as well as sampling. It does not actually send packets anywhere, which is
     left to concrete subclasses.
 
-    .. warning:
+    .. warning::
         This class makes no assumption around the underlying implementation
         behaviour. Delivery guarantees, thread safety, robustness to error are
         all left to specific implementations.
@@ -145,6 +145,11 @@ class BaseStatsdClient(abc.ABC):
 
         return self.serializer.serialize(
             (
+                # TODO: Is defaulting to ``.`` separator the right call here?
+                # Alternative 1: Use a prefix that simply prepended
+                # Alternative 2: Make the separator configurable
+                # Alternative 3: Make this configurable through an override of
+                #                some sort (`serialize_name` or similar.)
                 ("%s.%s" % (self.namespace, metric_name))
                 if self.namespace
                 else metric_name
@@ -207,7 +212,7 @@ class BaseStatsdClient(abc.ABC):
         value of the gauge or sends a gauge delta packet (prepended with ``+``
         or ``-``).
 
-        .. warning:
+        .. warning::
             Not all Statsd server implementations support Gauge deltas. Notably
             Datadog protocol does not (see:
             https://github.com/DataDog/dd-agent/issues/573 for more info).

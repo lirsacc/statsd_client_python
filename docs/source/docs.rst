@@ -4,14 +4,17 @@ Documentation
 Installation
 ------------
 
-.. code-block:: python
+This library is released on `PyPI <https://pypi.org/project/statsd-python/>`_ and
+can be installed through pip:
+
+.. code:: python
 
     pip install statsd-python
 
 Usage
 -----
 
-.. code-block:: python
+.. code:: python
 
     from statsd import StatsdClient
 
@@ -29,14 +32,14 @@ Statsd <https://github.com/statsd/statsd>`_:
 
 - Counters track the total number of occurrences of a given event.
 
-.. code-block:: python
+.. code:: python
 
     client.increment('my-counter')
     client.decrement('my-counter', 3)
 
 - Gauges track a value over time.
 
-.. code-block:: python
+.. code:: python
 
     # Set the value
     client.gauge('my-gauge', 42)
@@ -52,7 +55,7 @@ Statsd <https://github.com/statsd/statsd>`_:
 
 - Timings are used track durations in milliseconds.
 
-.. code-block:: python
+.. code:: python
 
     # Measure a duration of 1.234 seconds
     client.timing('my-duration', 1234)
@@ -60,7 +63,7 @@ Statsd <https://github.com/statsd/statsd>`_:
 The library also includes helpers for measuring code execution time using
 :py:func:`~time.perf_counter`.
 
-.. code-block:: python
+.. code:: python
 
     @timed('my-duration')
     def do_something():
@@ -71,7 +74,7 @@ The library also includes helpers for measuring code execution time using
 
 - Sets count unique occurences per key
 
-.. code-block:: python
+.. code:: python
 
     # Record one occurence of `my-set` for the key 1234.
     client.set('my-set', 1234)
@@ -85,7 +88,7 @@ metrics are sent with a sample rate of 1 (no sampling). The client will
 include this information in metric packets so the server can handle this
 accordingly.
 
-.. code-block:: python
+.. code:: python
 
     # Only send the metric half the time.
     client.gauge('my-gauge', 42, sample_rate=0.5)
@@ -105,9 +108,10 @@ beheaviour through the :mod:`statsd.format` module.
 
 By default the `Dogstatsd
 <https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/>`_ format is
-used.
+used. To customise this callers just need to instantiate the
+:class:`~statsd.StatsdClient` with the right parameters:
 
-.. code-block:: python
+.. code:: python
 
     from statsd import StatsdClient
     from statsd.formats import TelegrafSerializer
@@ -119,3 +123,35 @@ Transports
 
 For now a single transport is currently supported through
 :class:`~statsd.StatsdClient` / :class:`~statsd.UDPStatsdClient`.
+
+
+Debug client
+~~~~~~~~~~~~
+
+The :class:`~statsd.DebugStatsdClient` exposes a verbose client which can be
+swapped out for the real thing in development or when logging metrics is useful.
+
+The client can be used as-is to just forward all metrics to a logger:
+
+.. code:: python
+
+    import logging
+    from statsd import DebugStatsdClient
+
+    client = DebugStatsdClient(
+        # By default the logger instance named `statsd` is managed by the
+        # library but you can pass in any logger instance
+        logger=logging.getLogger('debug-metrics'),
+    )
+
+The debug client can also be used to wrap an existing client:
+
+.. code:: python
+
+    from django.conf import settings
+    from statsd import DebugStatsdClient, StatsdClient
+
+    client = StatsdClient()
+
+    if settings.DEBUG:
+        client = DebugStatsdClient(inner=client)
