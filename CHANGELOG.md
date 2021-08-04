@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add support for float gauge values.
+
 ## [0.2.0] - 2020-10-30
 
 - Correctly send a 0 value first when setting a gauge to a negative value.

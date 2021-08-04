@@ -199,7 +199,7 @@ class BaseStatsdClient(abc.ABC):
     def gauge(
         self,
         name: str,
-        value: int,
+        value: Union[int, float],
         *,
         is_update: bool = False,
         tags: Optional[Mapping[str, str]] = None,
@@ -216,6 +216,10 @@ class BaseStatsdClient(abc.ABC):
             Not all Statsd server implementations support Gauge deltas. Notably
             Datadog protocol does not (see:
             https://github.com/DataDog/dd-agent/issues/573 for more info).
+
+        .. warning::
+            Gauges can be integers or floats although floats may not be
+            supported by all servers.
 
         See :meth:`emit` for details on other parameters.
         """
