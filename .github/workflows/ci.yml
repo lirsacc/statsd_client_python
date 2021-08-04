@@ -1,0 +1,54 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [3.6, 3.7, 3.8, 3.9, "3.10-dev", pypy3]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Cache dependencies
+        uses: actions/cache@v1
+        with:
+          path: .pip-cache
+          key: ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ matrix.python }}-
+            ${{ runner.os }}-python-
+            ${{ runner.os }}-
+      - name: Install dependencies
+        if: matrix.python != 'pypy3'
+        run: |
+          pip install --cache-dir .pip-cache --upgrade pip
+          pip install --cache-dir .pip-cache --upgrade -r requirements-dev.txt
+          pip install -e .
+      - name: Install dependencies (pypy)
+        if: matrix.python == 'pypy3'
+        run: |
+          pip install --cache-dir .pip-cache --upgrade pip
+          pip install --cache-dir .pip-cache --upgrade -r requirements-tests.txt
+          pip install -e .
+      - name: (Debug) versions
+        run: |
+          python --version
+          pip --version
+          pip freeze
+      - name: Lint (Flake8)
+        if: matrix.python != 'pypy3'
+        run: |
+          flake8 --count --exit-zero --statistics src tests
+      - name: Typecheck
+        if: matrix.python != 'pypy3'
+        run: |
+          mypy --show-column-numbers --show-error-context --pretty --show-error-codes src tests
+      - name: Tests
+        run: |
+          pytest -vv --showlocals --cov=statsd --cov-report=term --no-cov-on-fail src tests
