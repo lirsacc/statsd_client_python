@@ -59,7 +59,7 @@ class BaseStatsdClient(abc.ABC):
         more details.
     """
 
-    KNOWN_METRIC_TYPES = ("c", "g", "s", "ms")
+    KNOWN_METRIC_TYPES = ("c", "g", "s", "ms", "h", "d")
 
     def __init__(
         self,
@@ -322,6 +322,40 @@ class BaseStatsdClient(abc.ABC):
         sample_rate: Optional[float] = None,
     ) -> None:
         self.emit(name, "s", str(value), tags=tags, sample_rate=sample_rate)
+
+    def histogram(
+        self,
+        name: str,
+        value: float,
+        *,
+        tags: Optional[Mapping[str, str]] = None,
+        sample_rate: Optional[float] = None,
+    ) -> None:
+        """
+        Send an histogram sample.
+
+        .. warning::
+            This is not a standard metric type and is not supported by all
+            StatsD backends.
+        """
+        self.emit(name, "h", str(value), tags=tags, sample_rate=sample_rate)
+
+    def distribution(
+        self,
+        name: str,
+        value: float,
+        *,
+        tags: Optional[Mapping[str, str]] = None,
+        sample_rate: Optional[float] = None,
+    ) -> None:
+        """
+        Send a distribution sample.
+
+        .. warning::
+            This is not a standard metric type and is not supported by all
+            StatsD backends.
+        """
+        self.emit(name, "d", str(value), tags=tags, sample_rate=sample_rate)
 
     # Implementation specific methods.
 

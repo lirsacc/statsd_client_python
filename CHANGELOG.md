@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add missing `histogram` and ` distribution` metric types.
+
 ## [0.3.0] - 2021-08-08
 
 - Add support for float gauge values.

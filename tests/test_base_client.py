@@ -69,6 +69,8 @@ SIMPLE_TEST_CASES: List[
     ("set", ("foo", 42), {}, "foo:42|s"),
     ("timing", ("foo", 1234), {}, "foo:1234|ms"),
     ("timing", ("foo", datetime.timedelta(minutes=17)), {}, "foo:1020000|ms"),
+    ("histogram", ("foo", 256.128), {}, "foo:256.128|h"),
+    ("distribution", ("foo", 256.128), {}, "foo:256.128|d"),
 ]
 
 
@@ -113,7 +115,7 @@ def test_sample_rate_in():
 def test_validates_invalid_metric_type():
     client = MockClient()
     with pytest.raises(ValueError):
-        client.emit("foo", "h", 54)
+        client.emit("foo", "p", 54)
 
 
 def test_default_sample_rate_out():
