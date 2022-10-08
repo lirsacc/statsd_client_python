@@ -246,6 +246,8 @@ class BaseStatsdClient(abc.ABC):
         """
         Send a timing value.
 
+        Timing usually are aggregated by the StatsD server receiving them.
+
         The ``value`` is expected to be in milliseconds.
 
         See :meth:`emit` for details on optional parameters.
@@ -334,6 +336,9 @@ class BaseStatsdClient(abc.ABC):
         """
         Send an histogram sample.
 
+        Histograms, like timings are usually aggregated locally but the StatsD
+        server receiving them.
+
         .. warning::
             This is not a standard metric type and is not supported by all
             StatsD backends.
@@ -350,6 +355,10 @@ class BaseStatsdClient(abc.ABC):
     ) -> None:
         """
         Send a distribution sample.
+
+        Distributions are usually aggregated globally by a centralised service
+        (e.g. Veneur, Datadog) and not locally by any intermediary StatsD
+        server.
 
         .. warning::
             This is not a standard metric type and is not supported by all
