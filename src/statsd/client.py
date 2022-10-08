@@ -265,6 +265,7 @@ class BaseStatsdClient(abc.ABC):
         *,
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
+        use_distribution: bool = False,
     ) -> Callable[[TCallable], TCallable]:
         """
         Decorator to record a function's execution time.
@@ -272,6 +273,10 @@ class BaseStatsdClient(abc.ABC):
         This just wraps the function call with a :meth:`timer` context manager.
 
         If a name is not provided, the function name will be used.
+
+        Passing ``use_distribution=True`` will report the value as a globally
+        aggregated :meth:`distribution` metric instead of a :meth:`timing`
+        metric.
 
         >>> client = StatsdClient()
         >>> @client.timed()
@@ -286,7 +291,11 @@ class BaseStatsdClient(abc.ABC):
 
             @functools.wraps(fn)
             def wrapped(*args, **kwargs):
-                with self.timer(metric_name, tags=tags):
+                with self.timer(
+                    metric_name,
+                    tags=tags,
+                    use_distribution=use_distribution,
+                ):
                     return fn(*args, **kwargs)
 
             return wrapped  # type: ignore
@@ -300,9 +309,14 @@ class BaseStatsdClient(abc.ABC):
         *,
         tags: Optional[Mapping[str, str]] = None,
         sample_rate: Optional[float] = None,
+        use_distribution: bool = False,
     ) -> Iterator[None]:
         """
         Context manager to measure the execution time of a block in milliseconds.
+
+        Passing ``use_distribution=True`` will report the value as a globally
+        aggregated :meth:`distribution` metric instead of a :meth:`timing`
+        metric.
 
         >>> client = StatsdClient()
         >>> with client.timer("download_duration"):
@@ -313,7 +327,10 @@ class BaseStatsdClient(abc.ABC):
             yield
         finally:
             duration_ms = int(1000 * (time.perf_counter() - start))
-            self.timing(name, duration_ms, tags=tags)
+            if use_distribution:
+                self.distribution(name, duration_ms, tags=tags)
+            else:
+                self.timing(name, duration_ms, tags=tags)
 
     def set(
         self,

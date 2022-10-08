@@ -226,6 +226,21 @@ def test_timed_decorator():
     client.mock.assert_called_once_with("foo:12294|ms|#foo:1")
 
 
+def test_timed_decorator_use_distribution():
+    client = MockClient()
+
+    @client.timed("foo", tags={"foo": "1"}, use_distribution=True)
+    def fn():
+        pass
+
+    with mock.patch(
+        "time.perf_counter", side_effect=[7.886838544, 20.181117592]
+    ):
+        fn()
+
+    client.mock.assert_called_once_with("foo:12294|d|#foo:1")
+
+
 @pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
 def test_debug_client_no_inner(
     method: str,
