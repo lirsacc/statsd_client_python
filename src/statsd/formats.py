@@ -35,6 +35,7 @@ class Serializer(abc.ABC):
         be used to support different server implementations.
     """
 
+    @abc.abstractmethod
     def serialize(
         self,
         metric_name: str,
