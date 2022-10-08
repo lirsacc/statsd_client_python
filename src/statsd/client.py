@@ -463,7 +463,7 @@ class DebugStatsdClient(BaseStatsdClient):
         inner: Optional[BaseStatsdClient] = None,
         **kwargs: Any,
     ) -> None:
-        """
+        r"""
         Initialize DebugStatsdClient.
 
         :param level: Log level to use, defaults to ``INFO``.
@@ -486,7 +486,7 @@ class DebugStatsdClient(BaseStatsdClient):
 
 
 class UDPStatsdClient(BaseStatsdClient):
-    """
+    r"""
     UDP Client implementation.
 
     This client should be thread safe.

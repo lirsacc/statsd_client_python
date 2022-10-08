@@ -1,4 +1,4 @@
-"""
+r"""
 Statsd client implementation for Python.
 
 Version: v\ |version|.
