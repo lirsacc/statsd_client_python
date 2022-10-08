@@ -1,3 +1,4 @@
-pytest~=7.1
+# Limit for pypy support in CI
+pytest~=7.0,<7.1
 pytest-cov~=4.0
 pytest-xdist~=2.5
