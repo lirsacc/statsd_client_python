@@ -78,18 +78,19 @@ GetMetricsInStatsd>`_.
     """
 
     def format_tags(self, tags: Mapping[str, str]) -> str:
-        return "|#%s" % ",".join(
+        if not tags:
+            return ""
+
+        joined = ",".join(
             # Dogstatsd supports tag without value.
-            "%s:%s"
-            % (
-                re.sub(INVALID_TAG_CHARACTERS_RE, "-", key),
-                re.sub(INVALID_TAG_CHARACTERS_RE, "-", value),
-            )
+            f"{re.sub(INVALID_TAG_CHARACTERS_RE, '-', key)}:"
+            f"{re.sub(INVALID_TAG_CHARACTERS_RE, '-', value)}"
             if value
             else key
             for key, value in tags.items()
             if key
         )
+        return f"|#{joined}"
 
     def serialize(
         self,
@@ -99,12 +100,10 @@ GetMetricsInStatsd>`_.
         sample_rate: float,
         tags: Mapping[str, str] = {},
     ) -> str:
-        return "%s:%s|%s%s%s" % (
-            metric_name,
-            value,
-            metric_type,
-            "|@%s" % sample_rate if sample_rate < 1 else "",
-            self.format_tags(tags) if tags else "",
+        return (
+            f"{metric_name}:{value}|{metric_type}"
+            f"{f'|@{sample_rate}' if sample_rate < 1 else ''}"
+            f"{self.format_tags(tags)}"
         )
 
 
@@ -122,26 +121,22 @@ class _AppendToNameSerializer(Serializer):
         # Graphite and InfluxDB will refuse the metric if a tag has no value.
         missing_tag_values = [k for k, v in tags.items() if not v]
         if missing_tag_values:
-            raise ValueError("Missing tag values: %r" % missing_tag_values)
+            raise ValueError(f"Missing tag values: {missing_tag_values!r}")
 
-        return "%s:%s|%s%s" % (
-            self.separator.join(
-                [
-                    metric_name,
-                    *(
-                        "%s=%s"
-                        % (
-                            re.sub(INVALID_TAG_CHARACTERS_RE, "-", key),
-                            re.sub(INVALID_TAG_CHARACTERS_RE, "-", value),
-                        )
-                        for key, value in tags.items()
-                        if key
-                    ),
-                ]
-            ),
-            value,
-            metric_type,
-            "|@%s" % sample_rate if sample_rate < 1 else "",
+        joined = self.separator.join(
+            [
+                metric_name,
+                *(
+                    f'{re.sub(INVALID_TAG_CHARACTERS_RE, "-", key)}='
+                    f'{re.sub(INVALID_TAG_CHARACTERS_RE, "-", value)}'
+                    for key, value in tags.items()
+                    if key
+                ),
+            ]
+        )
+        return (
+            f"{joined}:{value}|{metric_type}"
+            f"{f'|@{sample_rate}' if sample_rate < 1 else ''}"
         )
 
 

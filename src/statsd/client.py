@@ -141,7 +141,7 @@ class BaseStatsdClient(abc.ABC):
         tags: Optional[Mapping[str, str]],
     ) -> str:
         if metric_type not in self.KNOWN_METRIC_TYPES:
-            raise ValueError("Invalid metric type %s" % metric_type)
+            raise ValueError(f"Invalid metric type {metric_type}")
 
         return self.serializer.serialize(
             (
@@ -150,7 +150,7 @@ class BaseStatsdClient(abc.ABC):
                 # Alternative 2: Make the separator configurable
                 # Alternative 3: Make this configurable through an override of
                 #                some sort (`serialize_name` or similar.)
-                ("%s.%s" % (self.namespace, metric_name))
+                f"{self.namespace}.{metric_name}"
                 if self.namespace
                 else metric_name
             ),
@@ -224,7 +224,7 @@ class BaseStatsdClient(abc.ABC):
         See :meth:`emit` for details on other parameters.
         """
         if is_update:
-            _value = "%s%s" % ("+" if value >= 0 else "", value)
+            _value = f"{'+' if value >= 0 else ''}{value}"
         else:
             _value = str(value)
 
