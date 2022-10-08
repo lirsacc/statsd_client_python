@@ -21,7 +21,7 @@ def receiver_socket() -> Generator[socket.socket, None, None]:
         try:
             sock.shutdown(socket.SHUT_RDWR)
             sock.close()
-        except socket.error:
+        except OSError:
             pass
 
 
@@ -33,7 +33,7 @@ def _read_from_socket(sock: socket.socket) -> str:
 
     try:
         data = sock.recv(4096)
-    except socket.error as err:
+    except OSError as err:
         if err.errno == errno.EAGAIN:
             return ""
         raise

@@ -572,15 +572,14 @@ class UDPStatsdClient(BaseStatsdClient):
         # is called manually.
         if self.closed:
             raise RuntimeError("Can't emit metric after closing socket.")
-
         try:
             sent = self._socket().send(data)
             if sent < len(data):
-                raise socket.error(errno.EPIPE, "Broken pipe")
+                raise OSError(errno.EPIPE, "Broken pipe")
         # We should not break callsites when metrics fail to send so log instead.
         # TODO: Can we handle error conditions better?
         # TODO: Should this be configurable?
-        except socket.error as err:
+        except OSError as err:
             logger.warning("Error sending packet: %s", err)
         except Exception as err:
             logger.error("Unexpected error: %s", err, exc_info=True)
@@ -596,7 +595,7 @@ class UDPStatsdClient(BaseStatsdClient):
                 if self.sock:
                     self.sock.shutdown(socket.SHUT_RDWR)
                     self.sock.close()
-            except socket.error:
+            except OSError:
                 pass
             finally:
                 self.closed = True
