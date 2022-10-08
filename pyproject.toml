@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=61", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 80
+target-version = ['py37']
+
+[tool.isort]
+indent = 4
+force_grid_wrap = 0
+include_trailing_comma = true
+line_length = 80
+multi_line_output = 3
+use_parentheses = true
+combine_as_imports = true
+atomic = true
+lines_after_imports = 2
+default_section = "THIRDPARTY"
+float_to_top = true
+sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
+known_first_party = "statsd"
+
+[tool.mypy]
+warn_incomplete_stub = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unused_configs = true
+disallow_incomplete_defs = true
+follow_imports = "normal"
+ignore_missing_imports = false
+no_implicit_optional = false
+strict_optional = false
+disallow_any_generics = false
+check_untyped_defs = false
+warn_return_any = false
+allow_redefinition = false
+
+[tool.pytest.ini_options]
+addopts = [
+    "--color=yes",
+    "--doctest-modules",
+    "--doctest-continue-on-failure",
+    "--doctest-glob=**/*.doctest",
+    "--doctest-glob=**/*.rst"
+]
+
+doctest_optionflags = [
+    "IGNORE_EXCEPTION_DETAIL",
+    "ALLOW_UNICODE",
+    "ELLIPSIS",
+    "NORMALIZE_WHITESPACE",
+]
+
+testpaths = ["src", "tests", "docs"]
+
+junit_family = "xunit2"
+
+[tool.coverage.run]
+branch = true
+source = ["statsd"]
+omit = ["*_test.py"]
+
+[tool.coverage.paths]
+source = [
+    "src/",
+    ".tox/*/site-packages/",
+]
+
+[tool.coverage.report]
+show_missing = false
+precision = 2
+ignore_errors = false
+
+exclude_lines = [
+    "pragma: no cover",
+    "assert False",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "raise NotImplementedError()",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "def __repr__",
+    "def __str__",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
