@@ -29,7 +29,7 @@ def run_setup():
         packages=setuptools.find_packages(where="src"),
         package_dir={"": "src"},
         install_requires=[],
-        include_package_data=True,
+        include_package_data=False,
         python_requires=">=3.6",
         classifiers=[
             "Development Status :: 4 - Beta",
