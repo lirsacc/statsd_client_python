@@ -302,7 +302,7 @@ class BaseStatsdClient(abc.ABC):
         sample_rate: Optional[float] = None,
     ) -> Iterator[None]:
         """
-        Context manager to ,easure the execution time of a block.
+        Context manager to measure the execution time of a block in milliseconds.
 
         >>> client = StatsdClient()
         >>> with client.timer("download_duration"):
