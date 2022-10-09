@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2022-10-09
+
 - `Serializer.serialize` is now an abstract method.
 - Drop Python 3.6 support.
 - Suppport sending timers as `distribution` metrics.
