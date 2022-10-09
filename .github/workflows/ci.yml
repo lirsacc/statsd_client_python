@@ -50,40 +50,6 @@ jobs:
       - name: Tests
         run: |
           pytest -vv --showlocals --cov=statsd --cov-report=term --no-cov-on-fail src tests
-  docs:
-    runs-on: ubuntu-latest
-    needs:
-      - check
-    strategy:
-      matrix:
-        python: ["3.10"]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Cache dependencies
-        uses: actions/cache@v1
-        with:
-          path: .pip-cache
-          key: ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-python-${{ matrix.python }}-
-            ${{ runner.os }}-python-
-            ${{ runner.os }}-
-      - name: Install dependencies
-        run: |
-          pip install --cache-dir .pip-cache --upgrade pip -r requirements-docs.txt
-          pip install -e .
-      - name: (Debug) versions
-        run: |
-          python --version
-          pip --version
-          pip freeze
-      - name: Build docs
-        run: |
-          sphinx-build -v -W -b html docs/source docs/buildtox
   package:
     runs-on: ubuntu-latest
     needs:
@@ -108,12 +74,16 @@ jobs:
             ${{ runner.os }}-
       - name: Install dependencies
         run: |
-          pip install --cache-dir .pip-cache --upgrade pip -r requirements-build.txt
+          pip install --cache-dir .pip-cache --upgrade pip -r requirements-build.txt -r requirements-docs.txt
+          pip install --cache-dir .pip-cache -e .
       - name: (Debug) versions
         run: |
           python --version
           pip --version
           pip freeze
+      - name: Build docs
+        run: |
+          sphinx-build -v -W -b html docs/source docs/buildtox
       - name: Build package
         run: |
           python setup.py sdist bdist_wheel
