@@ -122,3 +122,5 @@ dmypy.json
 .direnv
 .envrc
 .tools-versions
+
+.pypirc
