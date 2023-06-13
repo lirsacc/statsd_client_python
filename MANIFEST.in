@@ -1,3 +1,4 @@
-include README.md LICENSE CHANGELOG.md
-include docs/_build/html/**/*
-include tests/*.py
+graft src
+include CHANGELOG.md
+include docs/build/**/*
+include src/**/py.typed
