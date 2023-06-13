@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2023-06-13
+
+- Reinstate `py.typed` in the built distribution which was dropped accidentally. For real this time.
+
 ## [0.6.0] - 2023-06-13
 
 - Reinstate `py.typed` in the built distribution which was dropped accidentally.
