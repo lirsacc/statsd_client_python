@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2023-06-13
+
+- Reinstate `py.typed` in the built distribution which was dropped accidentally.
+- Move the package build to use [build](https://pypa-build.readthedocs.io/en/stable/index.html) instead of calling setup.py directly.
+
 ## [0.5.0] - 2022-10-09
 
 - `Serializer.serialize` is now an abstract method.
