@@ -1,5 +1,5 @@
 # Limited because 4.4 conflicts with flake8 4+
-Sphinx <= 4.3
+Sphinx <= 7.1.2
 recommonmark ~= 0.7.1
 sphinx-autodoc-typehints < 1.18
 furo ~= 2022.6.21
