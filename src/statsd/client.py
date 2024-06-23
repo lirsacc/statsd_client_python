@@ -291,6 +291,7 @@ class BaseStatsdClient(abc.ABC):
                     metric_name,
                     tags=tags,
                     use_distribution=use_distribution,
+                    sample_rate=sample_rate,
                 ):
                     return fn(*args, **kwargs)
 
@@ -324,9 +325,19 @@ class BaseStatsdClient(abc.ABC):
         finally:
             duration_ms = int(1000 * (time.perf_counter() - start))
             if use_distribution:
-                self.distribution(name, duration_ms, tags=tags)
+                self.distribution(
+                    name,
+                    duration_ms,
+                    tags=tags,
+                    sample_rate=sample_rate,
+                )
             else:
-                self.timing(name, duration_ms, tags=tags)
+                self.timing(
+                    name,
+                    duration_ms,
+                    tags=tags,
+                    sample_rate=sample_rate,
+                )
 
     def set(
         self,

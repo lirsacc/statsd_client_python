@@ -102,6 +102,7 @@ select = [
     "TID",
     "RUF",
 
+    "ARG",
     "BLE",
     "C90",
     "FBT",

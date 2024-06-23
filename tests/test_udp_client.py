@@ -138,10 +138,7 @@ def test_close_before_anything_happened(receiver_socket: socket.socket) -> None:
     client._close()
 
 
-def test_call_after_close_raises(
-    receiver_socket: socket.socket,
-    caplog: Any,
-) -> None:
+def test_call_after_close_raises(receiver_socket: socket.socket) -> None:
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
     client._close()
