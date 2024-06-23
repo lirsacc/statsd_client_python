@@ -23,7 +23,7 @@ project = "statsd_python"
 pkg_meta = importlib.metadata.metadata(project)
 version = importlib.metadata.version(project)
 release = version
-author = pkg_meta["author"]
+author = pkg_meta["Author-email"]
 copyright = f"2020, {author}"
 
 

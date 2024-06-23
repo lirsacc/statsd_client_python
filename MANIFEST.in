@@ -1,4 +1,0 @@
-graft src
-include CHANGELOG.md
-include docs/build/**/*
-include src/**/py.typed

@@ -43,7 +43,15 @@ dependencies = []
 path = "src/statsd/version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/statsd_python"]
+packages = ["src/statsd"]
+
+[tool.hatch.build.targets.sdist]
+packages = ["src/statsd"]
+only-include = ["src/statsd", "docs/build", "CHANGELOG.md"]
+artifacts = ["docs/build"]
+
+[tool.hatch.build.targets.sdist.sources]
+"docs/build" = "docs"
 
 [tool.black]
 line-length = 80
