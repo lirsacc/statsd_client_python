@@ -89,6 +89,7 @@ preview = true
 pycodestyle.max-line-length = 100
 
 select = [
+    # Fairly standard and broadly applicable
     "E",
     "W",
     "F",
@@ -102,6 +103,7 @@ select = [
     "TID",
     "RUF",
 
+    # Less standard but useful and not too noisy
     "ARG",
     "BLE",
     "C90",
@@ -115,30 +117,24 @@ select = [
     "YTT",
     "G",
 
-    "UP",
+    # "D",  # pydocstyle
+
+    "UP",  # pyupgrade
+
+    # Simplify type annotations
     "FA",
     "ANN",
+    "TCH",
 
-    "PT",
+    "PT",  # pytest
 
-    # Up for consideration
-    # "PT",
-    # "ISC",
-    # "SLF",
-    # "R",
-    # "PL",
-    # "RET",
-    # "RSE",
-    # "SIM",
-    # "TCH".
-    # "D",
-    # "UP",
-    # "EM",
-    # "ARG",
-    # "ASYNC",
-    # "DJ",
+    # For considerations
+    # "PL",  Pylint, fairly noisy for now
+    # "SIM", Can be noisy
     # "ERA",
     # "PIE",
+    # "ASYNC",  Not applicable to this lib
+    # "DJ",  Not applicable to this lib
 ]
 
 ignore = [
