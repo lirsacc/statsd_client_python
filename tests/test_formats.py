@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple
+from collections.abc import Mapping
 
 import pytest
 
@@ -10,7 +10,7 @@ from statsd.formats import (
 )
 
 
-SerializeInput = Tuple[str, str, str, float, Mapping[str, str]]
+SerializeInput = tuple[str, str, str, float, Mapping[str, str]]
 
 
 CASE_SIMPLE: SerializeInput = ("my_metric", "c", "1", 1, {})
