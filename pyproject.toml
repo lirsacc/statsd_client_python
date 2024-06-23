@@ -33,7 +33,9 @@ dynamic = ["version"]
 
 requires-python = ">=3.8"
 
-dependencies = []
+dependencies = [
+    "typing_extensions>=4",
+]
 
 [project.urls]
 "Bug Reports" = "https://github.com/lirsacc/statsd_client_python/issues"
@@ -73,6 +75,7 @@ default_section = "THIRDPARTY"
 float_to_top = true
 sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
 known_first_party = "statsd"
+extra_standard_library = "typing_extensions"
 
 [tool.ruff]
 line-length = 80
@@ -98,7 +101,6 @@ select = [
     "T10",
     "TID",
     "RUF",
-    "UP",
 
     "BLE",
     "C90",
@@ -111,6 +113,10 @@ select = [
     "SLOT",
     "YTT",
     "G",
+
+    "UP",
+    "FA",
+    "ANN",
 
     # Up for consideration
     # "PT",
@@ -125,8 +131,6 @@ select = [
     # "D",
     # "UP",
     # "EM",
-    # "FA",
-    # "ANN",
     # "ARG",
     # "ASYNC",
     # "DJ",
@@ -136,6 +140,7 @@ select = [
 
 ignore = [
     "I",    # we use isort
+    "ANN401",
 ]
 
 unfixable = [
@@ -146,19 +151,15 @@ unfixable = [
 docstring-quotes = "double"
 
 [tool.mypy]
-warn_incomplete_stub = true
+strict = true
+warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-warn_unused_configs = true
-disallow_incomplete_defs = true
-follow_imports = "normal"
-ignore_missing_imports = false
-no_implicit_optional = false
-strict_optional = false
-disallow_any_generics = false
-check_untyped_defs = false
-warn_return_any = false
-allow_redefinition = false
+strict_equality = true
+strict_concatenate = true
+check_untyped_defs = true
+disallow_any_generics = true
+mypy_path = "src"
 
 [tool.pytest.ini_options]
 filterwarnings = [
