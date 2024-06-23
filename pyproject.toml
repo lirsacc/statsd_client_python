@@ -1,10 +1,65 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.black]
-line-length = 80
-target-version = ['py37']
+[project]
+name = "statsd_python"
+authors = [
+    { name = "Charles Lirsac", email = "code@lirsac.com" }
+]
+license = "MIT"
+description = ""
+readme = {"file" = "README.md", "content-type" = "text/markdown"}
+keywords = ["statsd", "metrics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dynamic = ["version"]
+
+requires-python = ">=3.8"
+
+dependencies = [
+    "typing_extensions>=4",
+]
+
+[project.urls]
+"Bug Reports" = "https://github.com/lirsacc/statsd_client_python/issues"
+"Source" = "https://github.com/lirsacc/statsd_client_python"
+
+[tool.hatch.version]
+path = "src/statsd/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/statsd"]
+
+[tool.hatch.build.targets.sdist]
+packages = ["src/statsd"]
+only-include = ["src/statsd", "docs/build", "CHANGELOG.md"]
+artifacts = ["docs/build"]
+
+[tool.hatch.build.targets.sdist.sources]
+"docs/build" = "docs"
+
+[tool.uv.pip]
+no-emit-package = ["setuptools", "pip", "wheel"]
+no-strip-extras = true
+emit-index-url = true
+python-version = "3.8"  # minimum
 
 [tool.isort]
 indent = 4
@@ -20,23 +75,117 @@ default_section = "THIRDPARTY"
 float_to_top = true
 sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
 known_first_party = "statsd"
+extra_standard_library = "typing_extensions"
+
+[tool.ruff]
+line-length = 80
+target-version = "py38"
+
+[tool.ruff.format]
+preview = true
+
+[tool.ruff.lint]
+preview = true
+pycodestyle.max-line-length = 100
+
+select = [
+    # Fairly standard and broadly applicable
+    "E",
+    "W",
+    "F",
+    "A",
+    "B",
+    "C",
+    "T",
+    "C4",
+    "COM",
+    "T10",
+    "TID",
+    "RUF",
+
+    # Less standard but useful and not too noisy
+    "ARG",
+    "BLE",
+    "C90",
+    "FBT",
+    "FLY",
+    "ICN",
+    "INP",
+    "LOG",
+    "Q",
+    "SLOT",
+    "YTT",
+    "G",
+
+    "D",  # pydocstyle
+    "D213",
+
+    "UP",  # pyupgrade
+
+    # Simplify type annotations
+    "FA",
+    "ANN",
+    "TCH",
+
+    "PT",  # pytest
+
+    # For considerations
+    # "PL",  Pylint, fairly noisy for now
+    # "SIM", Can be noisy
+    # "ERA",
+    # "PIE",
+    # "ASYNC",  Not applicable to this lib
+    # "DJ",  Not applicable to this lib
+]
+
+ignore = [
+    "I",    # we use isort
+    "ANN401",
+
+    "D100",
+    "D105",
+    "D107",
+    "D212",
+]
+
+unfixable = [
+    "B", # Avoid trying to fix flake8-bugbear (`B`) violations.
+]
+
+exclude = [
+    "docs/**/*.py",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"noxfile.py" = [
+    "D",
+]
+"tests/**/*.py" = [
+    "D",
+]
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
 
 [tool.mypy]
-warn_incomplete_stub = true
+strict = true
+warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-warn_unused_configs = true
-disallow_incomplete_defs = true
-follow_imports = "normal"
-ignore_missing_imports = false
-no_implicit_optional = false
-strict_optional = false
-disallow_any_generics = false
-check_untyped_defs = false
-warn_return_any = false
-allow_redefinition = false
+strict_equality = true
+strict_concatenate = true
+check_untyped_defs = true
+disallow_any_generics = true
+mypy_path = "src"
 
 [tool.pytest.ini_options]
+filterwarnings = [
+    "error::DeprecationWarning",
+]
+
 addopts = [
     "--color=yes",
     "--doctest-modules",
@@ -64,7 +213,6 @@ omit = ["*_test.py"]
 [tool.coverage.paths]
 source = [
     "src/",
-    ".tox/*/site-packages/",
 ]
 
 [tool.coverage.report]

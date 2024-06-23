@@ -4,7 +4,13 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+# isort: skip_file
+# mypy: ignore-errors
+# ruff: noqa
+
+import datetime
 import importlib.metadata
+
 
 # -- Path setup --------------------------------------------------------------
 
@@ -23,8 +29,8 @@ project = "statsd_python"
 pkg_meta = importlib.metadata.metadata(project)
 version = importlib.metadata.version(project)
 release = version
-author = pkg_meta["author"]
-copyright = f"2020, {author}"
+author = pkg_meta["Author-email"]
+copyright = f"{datetime.date.today().year}, {author}"
 
 
 # -- General configuration ---------------------------------------------------

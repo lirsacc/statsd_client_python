@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import contextlib
 import datetime
@@ -8,21 +10,15 @@ import random
 import socket
 import threading
 import time
-from typing import (
-    Any,
-    Callable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import Any, Callable, Iterator, Mapping, TypeVar
+from typing_extensions import ParamSpec
 
+from statsd.exceptions import InvalidMetricType, InvalidSampleRate
 from statsd.formats import DefaultSerializer, Serializer
 
 
-TCallable = TypeVar("TCallable", bound=Callable[..., Any])
+P = ParamSpec("P")
+T = TypeVar("T")
 
 logger = logging.getLogger("statsd")
 
@@ -64,13 +60,13 @@ class BaseStatsdClient(abc.ABC):
     def __init__(
         self,
         *,
-        namespace: Optional[str] = None,
-        tags: Optional[Mapping[str, str]] = None,
+        namespace: str | None = None,
+        tags: Mapping[str, str] | None = None,
         sample_rate: float = 1,
-        serializer: Optional[Serializer] = None,
+        serializer: Serializer | None = None,
     ) -> None:
         if not (0 <= sample_rate <= 1):
-            raise ValueError("sample_rate must be between 0 and 1.")
+            raise InvalidSampleRate(sample_rate)
 
         self.namespace = namespace
         self.default_tags = tags or {}
@@ -87,8 +83,8 @@ class BaseStatsdClient(abc.ABC):
         metric_type: str,
         value: str,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
     ) -> None:
         """
         Send a metric to the underlying implementation.
@@ -117,31 +113,31 @@ class BaseStatsdClient(abc.ABC):
             sample_rate if sample_rate is not None else self.default_sample_rate
         )
         if not (0 <= sample_rate <= 1):
-            raise ValueError("sample_rate must be between 0 and 1.")
+            raise InvalidSampleRate(sample_rate)
 
         if sample_rate < 1 and random.random() > sample_rate:
             return
 
         self._emit_packet(
-            self.serialize_metric(
+            self._serialize_metric(
                 metric_name,
                 metric_type,
                 value,
                 sample_rate=sample_rate,
                 tags=tags,
-            )
+            ),
         )
 
-    def serialize_metric(
+    def _serialize_metric(
         self,
         metric_name: str,
         metric_type: str,
         value: str,
         sample_rate: float,
-        tags: Optional[Mapping[str, str]],
+        tags: Mapping[str, str] | None,
     ) -> str:
         if metric_type not in self.KNOWN_METRIC_TYPES:
-            raise ValueError(f"Invalid metric type {metric_type}")
+            raise InvalidMetricType(metric_type)
 
         return self.serializer.serialize(
             (
@@ -165,8 +161,8 @@ class BaseStatsdClient(abc.ABC):
         name: str,
         value: int = 1,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
     ) -> None:
         """
         Increment a counter by the specified value (defaults to 1).
@@ -180,8 +176,8 @@ class BaseStatsdClient(abc.ABC):
         name: str,
         value: int = 1,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
     ) -> None:
         """
         Decrement a counter by the specified value (defaults to 1).
@@ -199,11 +195,11 @@ class BaseStatsdClient(abc.ABC):
     def gauge(
         self,
         name: str,
-        value: Union[int, float],
+        value: int | float,
         *,
         is_update: bool = False,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
     ) -> None:
         """
         Update a gauge value.
@@ -238,10 +234,10 @@ class BaseStatsdClient(abc.ABC):
     def timing(
         self,
         name: str,
-        value: Union[int, datetime.timedelta],
+        value: int | datetime.timedelta,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
     ) -> None:
         """
         Send a timing value.
@@ -261,14 +257,14 @@ class BaseStatsdClient(abc.ABC):
 
     def timed(
         self,
-        name: Optional[str] = None,
+        name: str | None = None,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
         use_distribution: bool = False,
-    ) -> Callable[[TCallable], TCallable]:
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
-        Decorator to record a function's execution time.
+        Wrap a function to record its execution time.
 
         This just wraps the function call with a :meth:`timer` context manager.
 
@@ -284,21 +280,22 @@ class BaseStatsdClient(abc.ABC):
         ...     pass
         """
 
-        def decorator(fn: TCallable) -> TCallable:
+        def decorator(fn: Callable[P, T]) -> Callable[P, T]:
             # TODO: Should the fallback include the module? Class (for methods)?
             # or func.__name__
             metric_name = name or fn.__name__
 
             @functools.wraps(fn)
-            def wrapped(*args, **kwargs):
+            def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
                 with self.timer(
                     metric_name,
                     tags=tags,
                     use_distribution=use_distribution,
+                    sample_rate=sample_rate,
                 ):
                     return fn(*args, **kwargs)
 
-            return wrapped  # type: ignore
+            return wrapped
 
         return decorator
 
@@ -307,8 +304,8 @@ class BaseStatsdClient(abc.ABC):
         self,
         name: str,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
         use_distribution: bool = False,
     ) -> Iterator[None]:
         """
@@ -328,18 +325,29 @@ class BaseStatsdClient(abc.ABC):
         finally:
             duration_ms = int(1000 * (time.perf_counter() - start))
             if use_distribution:
-                self.distribution(name, duration_ms, tags=tags)
+                self.distribution(
+                    name,
+                    duration_ms,
+                    tags=tags,
+                    sample_rate=sample_rate,
+                )
             else:
-                self.timing(name, duration_ms, tags=tags)
+                self.timing(
+                    name,
+                    duration_ms,
+                    tags=tags,
+                    sample_rate=sample_rate,
+                )
 
     def set(
         self,
         name: str,
         value: int,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
     ) -> None:
+        """Update a set counter."""
         self.emit(name, "s", str(value), tags=tags, sample_rate=sample_rate)
 
     def histogram(
@@ -347,8 +355,8 @@ class BaseStatsdClient(abc.ABC):
         name: str,
         value: float,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
     ) -> None:
         """
         Send an histogram sample.
@@ -367,8 +375,8 @@ class BaseStatsdClient(abc.ABC):
         name: str,
         value: float,
         *,
-        tags: Optional[Mapping[str, str]] = None,
-        sample_rate: Optional[float] = None,
+        tags: Mapping[str, str] | None = None,
+        sample_rate: float | None = None,
     ) -> None:
         """
         Send a distribution sample.
@@ -400,7 +408,7 @@ class _Batcher:
     def __init__(
         self,
         inner: BaseStatsdClient,
-        sample_rate: Optional[float] = None,
+        sample_rate: float | None = None,
     ) -> None:
         sample_rate = (
             sample_rate
@@ -408,13 +416,13 @@ class _Batcher:
             else inner.default_sample_rate
         )
         if not (0 <= sample_rate <= 1):
-            raise ValueError("sample_rate must be between 0 and 1.")
+            raise InvalidSampleRate(sample_rate)
 
         self.sample_rate = sample_rate
-        self.batch: List[str] = []
+        self.batch: list[str] = []
         self.inner = inner
 
-    def flush(self):
+    def flush(self) -> None:
         if self.sample_rate < 1 and random.random() > self.sample_rate:
             return
 
@@ -429,19 +437,19 @@ class _Batcher:
         metric_type: str,
         value: str,
         *,
-        tags: Optional[Mapping[str, str]] = None,
+        tags: Mapping[str, str] | None = None,
     ) -> None:
         self.batch.append(
-            self.inner.serialize_metric(
+            self.inner._serialize_metric(
                 metric_name,
                 metric_type,
                 value,
                 sample_rate=self.sample_rate,
                 tags=tags,
-            )
+            ),
         )
 
-    def __enter__(self) -> "_Batcher":
+    def __enter__(self) -> _Batcher:
         return self
 
     def __exit__(self, *args: Any) -> None:
@@ -460,7 +468,7 @@ class DebugStatsdClient(BaseStatsdClient):
         self,
         level: int = logging.INFO,
         logger: logging.Logger = logger,
-        inner: Optional[BaseStatsdClient] = None,
+        inner: BaseStatsdClient | None = None,
         **kwargs: Any,
     ) -> None:
         r"""
@@ -473,7 +481,7 @@ class DebugStatsdClient(BaseStatsdClient):
         :param inner: Wrapped client.
 
         :param \**kwargs: Extra arguments forwarded to :class:`BaseStatsdClient`.
-        """  # noqa: W605
+        """
         super().__init__(**kwargs)
         self.level = level
         self.logger = logger
@@ -505,7 +513,7 @@ class UDPStatsdClient(BaseStatsdClient):
         Set this to `0` to disable buffering.
 
     :param \**kwargs: Extra arguments forwarded to :class:`BaseStatsdClient`.
-    """  # noqa: W605
+    """
 
     # Standard default for Statsd.
     DEFAULT_HOST = "localhost"
@@ -528,23 +536,24 @@ class UDPStatsdClient(BaseStatsdClient):
 
         self.lock = threading.RLock()
         self.max_buffer_size = max(max_buffer_size, 0)
-        self.buffer: List[bytes] = []
+        self.buffer: list[bytes] = []
         self.buffer_size = 0
 
         self.closed = False
 
         self.host = host
         self.port = port
-        self.sock: Optional[socket.socket] = None
+        self.sock: socket.socket | None = None
 
     def _socket(self) -> socket.socket:
-        """
-        Lazily instantiate the socket, this should only happen once.
-        """
+        """Lazily instantiate the socket, this should only happen once."""
         if self.sock is None:
             with self.lock:
                 family, _, _, _, addr = socket.getaddrinfo(
-                    self.host, self.port, socket.AF_INET, socket.SOCK_DGRAM
+                    self.host,
+                    self.port,
+                    socket.AF_INET,
+                    socket.SOCK_DGRAM,
                 )[0]
 
                 self.sock = socket.socket(family, socket.SOCK_DGRAM)
@@ -555,9 +564,7 @@ class UDPStatsdClient(BaseStatsdClient):
             return self.sock
 
     def _flush_buffer(self) -> None:
-        """
-        If there is data in the buffer, send it and reset the buffer.
-        """
+        """If there is data in the buffer, send it and reset the buffer."""
         with self.lock:
             if not self.buffer:
                 return
@@ -567,9 +574,7 @@ class UDPStatsdClient(BaseStatsdClient):
             self.buffer_size = 0
 
     def _emit_packet(self, packet: str) -> None:
-        """
-        Handle metric packets, buffering and flusing the buffer accordingly.
-        """
+        """Handle metric packets, buffering and flusing the buffer accordingly."""
         with self.lock:
             msg = packet.encode("ascii")
 
@@ -591,9 +596,7 @@ class UDPStatsdClient(BaseStatsdClient):
             self.buffer_size += msg_size
 
     def _send(self, data: bytes) -> None:
-        """
-        Actually send data.
-        """
+        """Actually send data."""
         # No lock this is only called from locked region. No guarantees if this
         # is called manually.
         if self.closed:
@@ -608,11 +611,12 @@ class UDPStatsdClient(BaseStatsdClient):
         except OSError as err:
             logger.warning("Error sending packet: %s", err)
         except Exception as err:
-            logger.error("Unexpected error: %s", err, exc_info=True)
+            logger.exception("Unexpected error: %s", err)
 
     def _close(self) -> None:
         """
         Close the underlying socket and refuse any new attempt to send packets.
+
         This will first flush the current buffer if there is data left to send.
         """
         with self.lock:
