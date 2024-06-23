@@ -473,7 +473,7 @@ class DebugStatsdClient(BaseStatsdClient):
         :param inner: Wrapped client.
 
         :param \**kwargs: Extra arguments forwarded to :class:`BaseStatsdClient`.
-        """  # noqa: W605
+        """
         super().__init__(**kwargs)
         self.level = level
         self.logger = logger
@@ -505,7 +505,7 @@ class UDPStatsdClient(BaseStatsdClient):
         Set this to `0` to disable buffering.
 
     :param \**kwargs: Extra arguments forwarded to :class:`BaseStatsdClient`.
-    """  # noqa: W605
+    """
 
     # Standard default for Statsd.
     DEFAULT_HOST = "localhost"
@@ -611,7 +611,7 @@ class UDPStatsdClient(BaseStatsdClient):
         except OSError as err:
             logger.warning("Error sending packet: %s", err)
         except Exception as err:
-            logger.error("Unexpected error: %s", err, exc_info=True)
+            logger.exception("Unexpected error: %s", err)
 
     def _close(self) -> None:
         """

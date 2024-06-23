@@ -2,19 +2,21 @@ r"""
 Statsd client implementation for Python.
 
 Version: v\ |version|.
-"""  # noqa: W605
-from .client import (  # noqa: F401
+"""
+
+from .client import (
     BaseStatsdClient,
     DebugStatsdClient,
     StatsdClient,
     UDPStatsdClient,
 )
-from .version import __version__  # noqa: F401
+from .version import __version__
 
 
 __all__ = (
     "BaseStatsdClient",
+    "DebugStatsdClient",
     "StatsdClient",
     "UDPStatsdClient",
-    "DebugStatsdClient",
+    "__version__",
 )

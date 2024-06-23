@@ -104,7 +104,7 @@ def test_socket_errors_are_logged_not_raised(
 
     with mock.patch(
         "socket.socket.send",
-        side_effect=[socket.error("Broken socket")],
+        side_effect=[OSError("Broken socket")],
     ), caplog.at_level(logging.WARNING):
         # Should not raise.
         client.increment("foo", 1)
