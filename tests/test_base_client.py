@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from statsd import BaseStatsdClient, DebugStatsdClient
+from statsd import BaseStatsdClient, DebugStatsdClient, Sample
 from statsd.exceptions import InvalidMetricType, InvalidSampleRate
 
 
@@ -16,41 +16,17 @@ class MockClient(BaseStatsdClient):
         super().__init__(*args, **kwargs)
         self.mock = mock.Mock()
 
-    def _emit_packet(self, packet: str) -> None:
-        self.mock(packet)
+    def _emit(self, packets: list[str]) -> None:
+        if packets:
+            self.mock(packets)
 
+    def assert_emitted(self, expected: list[str] | str) -> None:
+        self.mock.assert_called_once_with(
+            expected if isinstance(expected, list) else [expected],
+        )
 
-def _assert_calls(fn: mock.MagicMock, *expected: tuple[Any, ...]) -> None:
-    assert expected
-    if len(expected) > 1:
-        assert len(fn.call_args_list) == len(expected)
-        assert fn.call_args_list == [mock.call(*x) for x in expected]
-    else:
-        fn.assert_called_once_with(*expected[0])
-
-
-def assert_emits(
-    client: MockClient,
-    method: str,
-    args: tuple[Any, ...],
-    kwargs: dict[str, Any],
-    expected: list[str] | str,
-) -> None:
-    client.mock.reset_mock()
-    getattr(client, method)(*args, **kwargs)
-    expected = expected if isinstance(expected, list) else [expected]
-    _assert_calls(client.mock, *((x,) for x in expected))
-
-
-def assert_does_not_emit(
-    client: MockClient,
-    method: str,
-    args: tuple[Any, ...],
-    kwargs: dict[str, Any],
-) -> None:
-    client.mock.reset_mock()
-    getattr(client, method)(*args, **kwargs)
-    client.mock.assert_not_called()
+    def assert_did_not_emit(self) -> None:
+        self.mock.assert_not_called()
 
 
 SIMPLE_TEST_CASES: list[
@@ -89,13 +65,9 @@ def test_basic_metrics(
     kwargs: dict[str, Any],
     expected: str | list[str],
 ) -> None:
-    assert_emits(
-        MockClient(),
-        method,
-        args,
-        kwargs,
-        expected,
-    )
+    client = MockClient()
+    getattr(client, method)(*args, **kwargs)
+    client.assert_emitted(expected)
 
 
 @pytest.mark.parametrize("value", [-1, 100, 1.1])
@@ -109,77 +81,52 @@ def test_invalid_sample_rate(value: float) -> None:
         MockClient(sample_rate=value)
 
 
+def test_validates_invalid_metric_type() -> None:
+    client = MockClient()
+    with pytest.raises(InvalidMetricType):
+        client.emit(Sample("foo", "p", "54"))  # type: ignore[arg-type]
+
+
 def test_sample_rate_out() -> None:
     client = MockClient()
     with mock.patch("random.random", side_effect=lambda: 0.75):
-        assert_does_not_emit(
-            client,
-            "increment",
-            ("foo", 5),
-            {"sample_rate": 0.5},
-        )
+        client.increment("foo", 5, sample_rate=0.5)
+    client.assert_did_not_emit()
 
 
 def test_sample_rate_in() -> None:
     client = MockClient()
     with mock.patch("random.random", side_effect=lambda: 0.25):
-        assert_emits(
-            client,
-            "increment",
-            ("foo", 5),
-            {"sample_rate": 0.5},
-            ["foo:5|c|@0.5"],
-        )
-
-
-def test_validates_invalid_metric_type() -> None:
-    client = MockClient()
-    with pytest.raises(InvalidMetricType):
-        client.emit("foo", "p", "54")
+        client.increment("foo", 5, sample_rate=0.5)
+    client.assert_emitted(["foo:5|c|@0.5"])
 
 
 def test_default_sample_rate_out() -> None:
     client = MockClient(sample_rate=0.5)
     with mock.patch("random.random", side_effect=lambda: 0.75):
-        assert_does_not_emit(client, "increment", ("foo", 5), {})
+        client.increment("foo", 5)
+    client.assert_did_not_emit()
 
 
 def test_default_sample_rate_in() -> None:
     client = MockClient(sample_rate=0.5)
     with mock.patch("random.random", side_effect=lambda: 0.25):
-        assert_emits(
-            client,
-            "increment",
-            ("foo", 5),
-            {},
-            ["foo:5|c|@0.5"],
-        )
+        client.increment("foo", 5)
+    client.assert_emitted(["foo:5|c|@0.5"])
 
 
 def test_batched_messages_are_sampled_as_one_in() -> None:
     client = MockClient(sample_rate=0.5)
     with mock.patch("random.random", side_effect=lambda: 0.25):
-        assert_emits(
-            client,
-            "gauge",
-            ("foo", -5),
-            {},
-            [
-                "foo:0|g|@0.5",
-                "foo:-5|g|@0.5",
-            ],
-        )
+        client.gauge("foo", -5)
+    client.assert_emitted(["foo:0|g|@0.5", "foo:-5|g|@0.5"])
 
 
 def test_batched_messages_are_sampled_as_one_out() -> None:
     client = MockClient(sample_rate=0.5)
     with mock.patch("random.random", side_effect=lambda: 0.75):
-        assert_does_not_emit(
-            client,
-            "gauge",
-            ("foo", -5),
-            {},
-        )
+        client.gauge("foo", -5)
+    client.assert_did_not_emit()
 
 
 @pytest.mark.parametrize(
@@ -201,13 +148,9 @@ def test_basic_with_tags(
     expected: str | list[str],
 ) -> None:
     tags = {"foo": "1", "bar": "value"}
-    assert_emits(
-        MockClient(),
-        method,
-        args,
-        {**kwargs, "tags": tags},
-        expected,
-    )
+    client = MockClient()
+    getattr(client, method)(*args, **{**kwargs, "tags": tags})
+    client.assert_emitted(expected)
 
 
 @pytest.mark.parametrize(
@@ -229,18 +172,15 @@ def test_default_tags(
     expected: str | list[str],
 ) -> None:
     tags = {"foo": "1", "bar": "value"}
-    assert_emits(MockClient(tags=tags), method, args, {**kwargs}, expected)
+    client = MockClient(tags=tags)
+    getattr(client, method)(*args, **{**kwargs, "tags": tags})
+    client.assert_emitted(expected)
 
 
 def test_metric_tag_overrides_default_tags() -> None:
     client = MockClient(tags={"foo": "1", "bar": "value"})
-    assert_emits(
-        client,
-        "increment",
-        ("foo",),
-        {"tags": {"foo": "2", "baz": "other_value"}},
-        ["foo:1|c|#foo:2,bar:value,baz:other_value"],
-    )
+    client.increment("foo", tags={"foo": "2", "baz": "other_value"})
+    client.assert_emitted(["foo:1|c|#foo:2,bar:value,baz:other_value"])
 
 
 def test_timed_decorator() -> None:
@@ -256,7 +196,7 @@ def test_timed_decorator() -> None:
     ):
         fn()
 
-    client.mock.assert_called_once_with("foo:12294|ms|#foo:1")
+    client.mock.assert_called_once_with(["foo:12294|ms|#foo:1"])
 
 
 def test_timed_decorator_use_distribution() -> None:
@@ -272,7 +212,7 @@ def test_timed_decorator_use_distribution() -> None:
     ):
         fn()
 
-    client.mock.assert_called_once_with("foo:12294|d|#foo:1")
+    client.mock.assert_called_once_with(["foo:12294|d|#foo:1"])
 
 
 @pytest.mark.parametrize(
@@ -309,11 +249,10 @@ def test_debug_client(
     kwargs: dict[str, Any],
     expected: str | list[str],
 ) -> None:
-    mock_inner = mock.Mock()
-    client = DebugStatsdClient(inner=mock_inner)
+    inner = MockClient()
+    client = DebugStatsdClient(inner=inner)
     getattr(client, method)(*args, **kwargs)
-    expected = expected if isinstance(expected, list) else [expected]
-    _assert_calls(mock_inner._emit_packet, *((x,) for x in expected))
+    inner.assert_emitted(expected)
 
 
 @pytest.mark.parametrize(
