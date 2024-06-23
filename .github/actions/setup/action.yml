@@ -29,4 +29,4 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        pip install --upgrade pip -r requirements/dev.txt
+        pip install -r requirements/ci.txt
