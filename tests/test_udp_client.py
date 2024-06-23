@@ -10,7 +10,7 @@ import pytest
 from statsd import StatsdClient
 
 
-@pytest.fixture
+@pytest.fixture()
 def receiver_socket() -> Generator[socket.socket, None, None]:
     sock = socket.socket(type=socket.SOCK_DGRAM)
     sock.bind(("", 0))

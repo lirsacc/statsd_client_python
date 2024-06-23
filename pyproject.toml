@@ -118,6 +118,8 @@ select = [
     "FA",
     "ANN",
 
+    "PT",
+
     # Up for consideration
     # "PT",
     # "ISC",

@@ -8,6 +8,7 @@ from unittest import mock
 import pytest
 
 from statsd import BaseStatsdClient, DebugStatsdClient
+from statsd.exceptions import InvalidMetricType, InvalidSampleRate
 
 
 class MockClient(BaseStatsdClient):
@@ -19,12 +20,13 @@ class MockClient(BaseStatsdClient):
         self.mock(packet)
 
 
-def _assert_calls(fn: mock.MagicMock, *expected: Any) -> None:
-    if isinstance(expected, list):
+def _assert_calls(fn: mock.MagicMock, *expected: tuple[Any, ...]) -> None:
+    assert expected
+    if len(expected) > 1:
         assert len(fn.call_args_list) == len(expected)
-        assert fn.call_args_list == [mock.call(x) for x in expected]
+        assert fn.call_args_list == [mock.call(*x) for x in expected]
     else:
-        fn.assert_called_once_with(expected)
+        fn.assert_called_once_with(*expected[0])
 
 
 def assert_emits(
@@ -36,7 +38,8 @@ def assert_emits(
 ) -> None:
     client.mock.reset_mock()
     getattr(client, method)(*args, **kwargs)
-    _assert_calls(client.mock, expected)
+    expected = expected if isinstance(expected, list) else [expected]
+    _assert_calls(client.mock, *((x,) for x in expected))
 
 
 def assert_does_not_emit(
@@ -76,24 +79,33 @@ SIMPLE_TEST_CASES: list[
 ]
 
 
-@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+@pytest.mark.parametrize(
+    ("method", "args", "kwargs", "expected"),
+    SIMPLE_TEST_CASES,
+)
 def test_basic_metrics(
     method: str,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
-    expected: str,
+    expected: str | list[str],
 ) -> None:
-    assert_emits(MockClient(), method, args, kwargs, expected)
+    assert_emits(
+        MockClient(),
+        method,
+        args,
+        kwargs,
+        expected,
+    )
 
 
 @pytest.mark.parametrize("value", [-1, 100, 1.1])
 def test_invalid_sample_rate(value: float) -> None:
     client = MockClient()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSampleRate):
         client.increment("foo", sample_rate=value)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSampleRate):
         MockClient(sample_rate=value)
 
 
@@ -116,13 +128,13 @@ def test_sample_rate_in() -> None:
             "increment",
             ("foo", 5),
             {"sample_rate": 0.5},
-            "foo:5|c|@0.5",
+            ["foo:5|c|@0.5"],
         )
 
 
 def test_validates_invalid_metric_type() -> None:
     client = MockClient()
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidMetricType):
         client.emit("foo", "p", "54")
 
 
@@ -140,7 +152,7 @@ def test_default_sample_rate_in() -> None:
             "increment",
             ("foo", 5),
             {},
-            "foo:5|c|@0.5",
+            ["foo:5|c|@0.5"],
         )
 
 
@@ -171,7 +183,7 @@ def test_batched_messages_are_sampled_as_one_out() -> None:
 
 
 @pytest.mark.parametrize(
-    "method,args,kwargs,expected",
+    ("method", "args", "kwargs", "expected"),
     [
         ("increment", ("foo",), {}, "foo:1|c|#foo:1,bar:value"),
         (
@@ -186,14 +198,20 @@ def test_basic_with_tags(
     method: str,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
-    expected: str,
+    expected: str | list[str],
 ) -> None:
     tags = {"foo": "1", "bar": "value"}
-    assert_emits(MockClient(), method, args, {**kwargs, "tags": tags}, expected)
+    assert_emits(
+        MockClient(),
+        method,
+        args,
+        {**kwargs, "tags": tags},
+        expected,
+    )
 
 
 @pytest.mark.parametrize(
-    "method,args,kwargs,expected",
+    ("method", "args", "kwargs", "expected"),
     [
         ("increment", ("foo",), {}, "foo:1|c|#foo:1,bar:value"),
         (
@@ -208,7 +226,7 @@ def test_default_tags(
     method: str,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
-    expected: str,
+    expected: str | list[str],
 ) -> None:
     tags = {"foo": "1", "bar": "value"}
     assert_emits(MockClient(tags=tags), method, args, {**kwargs}, expected)
@@ -221,7 +239,7 @@ def test_metric_tag_overrides_default_tags() -> None:
         "increment",
         ("foo",),
         {"tags": {"foo": "2", "baz": "other_value"}},
-        "foo:1|c|#foo:2,bar:value,baz:other_value",
+        ["foo:1|c|#foo:2,bar:value,baz:other_value"],
     )
 
 
@@ -257,7 +275,10 @@ def test_timed_decorator_use_distribution() -> None:
     client.mock.assert_called_once_with("foo:12294|d|#foo:1")
 
 
-@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+@pytest.mark.parametrize(
+    ("method", "args", "kwargs", "expected"),
+    SIMPLE_TEST_CASES,
+)
 def test_debug_client_no_inner(
     method: str,
     args: tuple[Any, ...],
@@ -278,20 +299,27 @@ def test_debug_client_no_inner(
         assert expected in caplog.text
 
 
-@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+@pytest.mark.parametrize(
+    ("method", "args", "kwargs", "expected"),
+    SIMPLE_TEST_CASES,
+)
 def test_debug_client(
     method: str,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
-    expected: str,
+    expected: str | list[str],
 ) -> None:
     mock_inner = mock.Mock()
     client = DebugStatsdClient(inner=mock_inner)
     getattr(client, method)(*args, **kwargs)
-    _assert_calls(mock_inner._emit_packet, expected)
+    expected = expected if isinstance(expected, list) else [expected]
+    _assert_calls(mock_inner._emit_packet, *((x,) for x in expected))
 
 
-@pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
+@pytest.mark.parametrize(
+    ("method", "args", "kwargs", "expected"),
+    SIMPLE_TEST_CASES,
+)
 def test_debug_client_custom_logger_and_level(
     method: str,
     args: tuple[Any, ...],

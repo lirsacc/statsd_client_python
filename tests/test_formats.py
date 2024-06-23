@@ -2,6 +2,7 @@ from typing import Mapping, Tuple
 
 import pytest
 
+from statsd.exceptions import InvalidTags
 from statsd.formats import (
     DogstatsdSerializer,
     GraphiteSerializer,
@@ -51,7 +52,7 @@ CASE_EMPTY_KEY = SerializeInput = (
 
 
 @pytest.mark.parametrize(
-    "params,expected",
+    ("params", "expected"),
     [
         (CASE_SIMPLE, "my_metric:1|c"),
         (CASE_TAG_AND_RATE, "my_metric:123456|ms|@0.4|#foo:1,bar:some_value"),
@@ -66,7 +67,7 @@ def test_dogstatsd_format_ok(params: SerializeInput, expected: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "params,expected",
+    ("params", "expected"),
     [
         (CASE_SIMPLE, "my_metric:1|c"),
         (CASE_TAG_AND_RATE, "my_metric,foo=1,bar=some_value:123456|ms|@0.4"),
@@ -81,12 +82,12 @@ def test_telegraf_format_ok(params: SerializeInput, expected: str) -> None:
 
 @pytest.mark.parametrize("params", [CASE_EMPTY_VALUE])
 def test_telegraf_format_invalid(params: SerializeInput) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTags):
         TelegrafSerializer().serialize(*params)
 
 
 @pytest.mark.parametrize(
-    "params,expected",
+    ("params", "expected"),
     [
         (CASE_SIMPLE, "my_metric:1|c"),
         (CASE_TAG_AND_RATE, "my_metric;foo=1;bar=some_value:123456|ms|@0.4"),
@@ -101,5 +102,5 @@ def test_graphite_format_ok(params: SerializeInput, expected: str) -> None:
 
 @pytest.mark.parametrize("params", [CASE_EMPTY_VALUE])
 def test_graphite_format_invalid(params: SerializeInput) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidTags):
         GraphiteSerializer().serialize(*params)

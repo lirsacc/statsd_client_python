@@ -2,6 +2,8 @@ import abc
 import re
 from typing import Mapping
 
+from statsd.exceptions import InvalidTags
+
 
 # Global exclusion based on a mix of what Graphite and Datadog support. Some
 # implementation support unicode but I feel that's a rare enough case that its
@@ -121,7 +123,7 @@ class _AppendToNameSerializer(Serializer):
         # Graphite and InfluxDB will refuse the metric if a tag has no value.
         missing_tag_values = [k for k, v in tags.items() if not v]
         if missing_tag_values:
-            raise ValueError(f"Missing tag values: {missing_tag_values!r}")
+            raise InvalidTags(f"Missing tag values: {missing_tag_values!r}")
 
         joined = self.separator.join(
             [

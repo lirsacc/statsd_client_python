@@ -13,6 +13,7 @@ import time
 from typing import Any, Callable, Iterator, Mapping, TypeVar
 from typing_extensions import ParamSpec
 
+from statsd.exceptions import InvalidMetricType, InvalidSampleRate
 from statsd.formats import DefaultSerializer, Serializer
 
 
@@ -65,7 +66,7 @@ class BaseStatsdClient(abc.ABC):
         serializer: Serializer | None = None,
     ) -> None:
         if not (0 <= sample_rate <= 1):
-            raise ValueError("sample_rate must be between 0 and 1.")
+            raise InvalidSampleRate(sample_rate)
 
         self.namespace = namespace
         self.default_tags = tags or {}
@@ -112,7 +113,7 @@ class BaseStatsdClient(abc.ABC):
             sample_rate if sample_rate is not None else self.default_sample_rate
         )
         if not (0 <= sample_rate <= 1):
-            raise ValueError("sample_rate must be between 0 and 1.")
+            raise InvalidSampleRate(sample_rate)
 
         if sample_rate < 1 and random.random() > sample_rate:
             return
@@ -136,7 +137,7 @@ class BaseStatsdClient(abc.ABC):
         tags: Mapping[str, str] | None,
     ) -> str:
         if metric_type not in self.KNOWN_METRIC_TYPES:
-            raise ValueError(f"Invalid metric type {metric_type}")
+            raise InvalidMetricType(metric_type)
 
         return self.serializer.serialize(
             (
@@ -403,7 +404,7 @@ class _Batcher:
             else inner.default_sample_rate
         )
         if not (0 <= sample_rate <= 1):
-            raise ValueError("sample_rate must be between 0 and 1.")
+            raise InvalidSampleRate(sample_rate)
 
         self.sample_rate = sample_rate
         self.batch: list[str] = []
