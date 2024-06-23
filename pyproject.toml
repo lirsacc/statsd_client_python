@@ -152,6 +152,10 @@ unfixable = [
     "B", # Avoid trying to fix flake8-bugbear (`B`) violations.
 ]
 
+exclude = [
+    "docs/**/*.py",
+]
+
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
 
