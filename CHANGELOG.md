@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Move to [`hatchling`](https://hatch.pypa.io/latest/) as a build backend.
 - Drop Python 3.7 support.
+- Drop Python 3.8 support.
 
 ## [0.6.1] - 2023-06-13
 

@@ -2,7 +2,8 @@ import errno
 import logging
 import socket
 import time
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -85,8 +86,11 @@ def test_broken_pipe(receiver_socket: socket.socket, caplog: Any) -> None:
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
 
-    with mock.patch("socket.socket.send", side_effect=[2]), caplog.at_level(
-        logging.WARNING,
+    with (
+        mock.patch("socket.socket.send", side_effect=[2]),
+        caplog.at_level(
+            logging.WARNING,
+        ),
     ):
         # Should not raise.
         client.increment("foo", 1)
@@ -102,10 +106,13 @@ def test_socket_errors_are_logged_not_raised(
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
 
-    with mock.patch(
-        "socket.socket.send",
-        side_effect=[OSError("Broken socket")],
-    ), caplog.at_level(logging.WARNING):
+    with (
+        mock.patch(
+            "socket.socket.send",
+            side_effect=[OSError("Broken socket")],
+        ),
+        caplog.at_level(logging.WARNING),
+    ):
         # Should not raise.
         client.increment("foo", 1)
 
@@ -120,10 +127,13 @@ def test_unexpected_exceptions_are_logged_not_raised(
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
 
-    with mock.patch(
-        "socket.socket.send",
-        side_effect=[ValueError("Random error")],
-    ), caplog.at_level(logging.ERROR):
+    with (
+        mock.patch(
+            "socket.socket.send",
+            side_effect=[ValueError("Random error")],
+        ),
+        caplog.at_level(logging.ERROR),
+    ):
         # Should not raise.
         client.increment("foo", 1)
 

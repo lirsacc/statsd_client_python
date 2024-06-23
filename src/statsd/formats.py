@@ -1,6 +1,6 @@
 import abc
 import re
-from typing import Mapping
+from collections.abc import Mapping
 
 from statsd.exceptions import InvalidTags
 
