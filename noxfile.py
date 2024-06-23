@@ -37,6 +37,8 @@ nox.options.sessions = (
     "mypy",
     "test",
     "coverage",
+    "docs",
+    "build",
 )
 
 
