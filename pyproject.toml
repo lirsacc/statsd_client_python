@@ -180,6 +180,10 @@ check_untyped_defs = true
 disallow_any_generics = true
 mypy_path = "src"
 
+exclude = [
+    "^.nox",
+]
+
 [tool.pytest.ini_options]
 filterwarnings = [
     "error::DeprecationWarning",
