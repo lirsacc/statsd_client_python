@@ -2,19 +2,16 @@ from __future__ import annotations
 
 import abc
 import contextlib
-import datetime
 import errno
 import functools
 import logging
-import random
 import socket
 import threading
 import time
 from typing import Any, Callable, Iterator, Mapping, TypeVar
 from typing_extensions import ParamSpec
 
-from statsd.exceptions import InvalidMetricType, InvalidSampleRate
-from statsd.formats import DefaultSerializer, Serializer
+from statsd.base import AbstractStatsdClient
 
 
 P = ParamSpec("P")
@@ -23,237 +20,32 @@ T = TypeVar("T")
 logger = logging.getLogger("statsd")
 
 
-class BaseStatsdClient(abc.ABC):
+class BaseStatsdClient(AbstractStatsdClient[None]):
     """
-    Generic Statsd client interface.
+    Base client.
 
     This class exposes the public interface and takes care of packet formatting
     as well as sampling. It does not actually send packets anywhere, which is
-    left to concrete subclasses.
+    left to concrete subclasses implementing :meth:`_emit`.
 
     .. warning::
         This class makes no assumption around the underlying implementation
         behaviour. Delivery guarantees, thread safety, robustness to error are
         all left to specific implementations.
-
-    :param namespace: Optional prefix to add all metrics.
-
-        If this is set to ``foo``, then all metrics will be prefixed with
-        ``foo.``; so for instance sending out ``bar`` would actually be sent
-        as ``foo.bar``.
-
-    :param tags: Default tags applied to all metrics.
-
-    :param sample_rate: Default sampling rate applied to all metrics.
-        This should be between 0 and 1 inclusive, 1 meaning that all metrics
-        will be forwarded and 0 that none will be forwarded.
-        Defaults to 1.
-
-    :param serializer: A serializer defining the wire format of the metrics.
-        This allows supporting diverging server implementation such as how
-        Telegraf and Dogstatsd handle tags. See :mod:`statsd.formats` for
-        more details.
     """
 
-    KNOWN_METRIC_TYPES = ("c", "g", "s", "ms", "h", "d")
-
-    def __init__(
-        self,
-        *,
-        namespace: str | None = None,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float = 1,
-        serializer: Serializer | None = None,
-    ) -> None:
-        if not (0 <= sample_rate <= 1):
-            raise InvalidSampleRate(sample_rate)
-
-        self.namespace = namespace
-        self.default_tags = tags or {}
-        self.default_sample_rate = sample_rate
-        self.serializer = (
-            DefaultSerializer() if serializer is None else serializer
-        )
-
-    # Shared interface
-
-    def emit(
-        self,
-        metric_name: str,
-        metric_type: str,
-        value: str,
-        *,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float | None = None,
-    ) -> None:
+    @abc.abstractmethod
+    def _emit(self, packets: list[str]) -> None:
         """
-        Send a metric to the underlying implementation.
+        Send implementation.
 
-        This method takes care sampling metrics and builds the actual packet
-        that will be sent to the server; implementations are purely responsible
-        for sending the packet and have nothing to do with the Statsd format.
+        This method is responsible for actually sending the formatted packets
+        and should be implemented by all subclasses.
 
-        :param metric_name: Metric name. This will be namespaced if the client
-            is namespace.
-
-        :param metric_type: One of the supported Statsd metric types, counter
-            ("c"), gauge ("g"), timing ("ms") and set ("s").
-
-        :param value: etric value formatted according to the rules for the type.
-
-        :param tags: A mapping of tag name to their value. This will be merged
-            with the client's tags if relevant, overriding any tag already set.
-
-        :param sample_rate: Sampling rate applied to this particular call.
-            Should be between 0 and 1 inclusive, 1 meaning that all metrics
-            will be forwarded and 0 that none will be forwarded. If left
-            unspecified this will use the client's sample rate.
+        It may batch or buffer packets but should not modify them in any way. It
+        should be agnostic to the Statsd format.
         """
-        sample_rate = (
-            sample_rate if sample_rate is not None else self.default_sample_rate
-        )
-        if not (0 <= sample_rate <= 1):
-            raise InvalidSampleRate(sample_rate)
-
-        if sample_rate < 1 and random.random() > sample_rate:
-            return
-
-        self._emit_packet(
-            self._serialize_metric(
-                metric_name,
-                metric_type,
-                value,
-                sample_rate=sample_rate,
-                tags=tags,
-            ),
-        )
-
-    def _serialize_metric(
-        self,
-        metric_name: str,
-        metric_type: str,
-        value: str,
-        sample_rate: float,
-        tags: Mapping[str, str] | None,
-    ) -> str:
-        if metric_type not in self.KNOWN_METRIC_TYPES:
-            raise InvalidMetricType(metric_type)
-
-        return self.serializer.serialize(
-            (
-                # TODO: Is defaulting to ``.`` separator the right call here?
-                # Alternative 1: Use a prefix that simply prepended
-                # Alternative 2: Make the separator configurable
-                # Alternative 3: Make this configurable through an override of
-                #                some sort (`serialize_name` or similar.)
-                f"{self.namespace}.{metric_name}"
-                if self.namespace
-                else metric_name
-            ),
-            metric_type,
-            value,
-            sample_rate=sample_rate,
-            tags={**self.default_tags, **(tags or {})},
-        )
-
-    def increment(
-        self,
-        name: str,
-        value: int = 1,
-        *,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float | None = None,
-    ) -> None:
-        """
-        Increment a counter by the specified value (defaults to 1).
-
-        See :meth:`emit` for details on optional parameters.
-        """
-        self.emit(name, "c", str(value), tags=tags, sample_rate=sample_rate)
-
-    def decrement(
-        self,
-        name: str,
-        value: int = 1,
-        *,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float | None = None,
-    ) -> None:
-        """
-        Decrement a counter by the specified value (defaults to 1).
-
-        See :meth:`emit` for details on optional parameters.
-        """
-        self.emit(
-            name,
-            "c",
-            str(-1 * value),
-            tags=tags,
-            sample_rate=sample_rate,
-        )
-
-    def gauge(
-        self,
-        name: str,
-        value: int | float,
-        *,
-        is_update: bool = False,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float | None = None,
-    ) -> None:
-        """
-        Update a gauge value.
-
-        The ``is_update`` parameter can be used to control whether this sets the
-        value of the gauge or sends a gauge delta packet (prepended with ``+``
-        or ``-``).
-
-        .. warning::
-            Not all Statsd server implementations support Gauge deltas. Notably
-            Datadog protocol does not (see:
-            https://github.com/DataDog/dd-agent/issues/573 for more info).
-
-        .. warning::
-            Gauges can be integers or floats although floats may not be
-            supported by all servers.
-
-        See :meth:`emit` for details on other parameters.
-        """
-        if is_update:
-            _value = f"{'+' if value >= 0 else ''}{value}"
-        else:
-            _value = str(value)
-
-        with _Batcher(self, sample_rate=sample_rate) as batch:
-            if value < 0 and not is_update:
-                # WARN: This could be subject to race condition depending on the
-                # underlying transport and buffering settings.
-                batch.queue(name, "g", "0", tags=tags)
-            batch.queue(name, "g", _value, tags=tags)
-
-    def timing(
-        self,
-        name: str,
-        value: int | datetime.timedelta,
-        *,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float | None = None,
-    ) -> None:
-        """
-        Send a timing value.
-
-        Timing usually are aggregated by the StatsD server receiving them.
-
-        The ``value`` is expected to be in milliseconds.
-
-        See :meth:`emit` for details on optional parameters.
-        """
-        # TODO: Some server implementation support higher resolution timers
-        # using floats. We could support this with a flag.
-        if isinstance(value, datetime.timedelta):
-            value = int(1000 * value.total_seconds())
-
-        self.emit(name, "ms", str(value), tags=tags, sample_rate=sample_rate)
+        raise NotImplementedError()
 
     def timed(
         self,
@@ -309,7 +101,7 @@ class BaseStatsdClient(abc.ABC):
         use_distribution: bool = False,
     ) -> Iterator[None]:
         """
-        Context manager to measure the execution time of a block in milliseconds.
+        Context manager to measure the execution time of a block.
 
         Passing ``use_distribution=True`` will report the value as a globally
         aggregated :meth:`distribution` metric instead of a :meth:`timing`
@@ -338,122 +130,6 @@ class BaseStatsdClient(abc.ABC):
                     tags=tags,
                     sample_rate=sample_rate,
                 )
-
-    def set(
-        self,
-        name: str,
-        value: int,
-        *,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float | None = None,
-    ) -> None:
-        """Update a set counter."""
-        self.emit(name, "s", str(value), tags=tags, sample_rate=sample_rate)
-
-    def histogram(
-        self,
-        name: str,
-        value: float,
-        *,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float | None = None,
-    ) -> None:
-        """
-        Send an histogram sample.
-
-        Histograms, like timings are usually aggregated locally but the StatsD
-        server receiving them.
-
-        .. warning::
-            This is not a standard metric type and is not supported by all
-            StatsD backends.
-        """
-        self.emit(name, "h", str(value), tags=tags, sample_rate=sample_rate)
-
-    def distribution(
-        self,
-        name: str,
-        value: float,
-        *,
-        tags: Mapping[str, str] | None = None,
-        sample_rate: float | None = None,
-    ) -> None:
-        """
-        Send a distribution sample.
-
-        Distributions are usually aggregated globally by a centralised service
-        (e.g. Veneur, Datadog) and not locally by any intermediary StatsD
-        server.
-
-        .. warning::
-            This is not a standard metric type and is not supported by all
-            StatsD backends.
-        """
-        self.emit(name, "d", str(value), tags=tags, sample_rate=sample_rate)
-
-    # Implementation specific methods.
-
-    @abc.abstractmethod
-    def _emit_packet(self, packet: str) -> None:
-        """
-        Send implementation.
-
-        This method is responsible for actually sending the formatted packets
-        and should be implemented by all subclasses.
-        """
-        raise NotImplementedError()
-
-
-class _Batcher:
-    def __init__(
-        self,
-        inner: BaseStatsdClient,
-        sample_rate: float | None = None,
-    ) -> None:
-        sample_rate = (
-            sample_rate
-            if sample_rate is not None
-            else inner.default_sample_rate
-        )
-        if not (0 <= sample_rate <= 1):
-            raise InvalidSampleRate(sample_rate)
-
-        self.sample_rate = sample_rate
-        self.batch: list[str] = []
-        self.inner = inner
-
-    def flush(self) -> None:
-        if self.sample_rate < 1 and random.random() > self.sample_rate:
-            return
-
-        for x in self.batch:
-            self.inner._emit_packet(x)
-
-        self.batch[:] = []
-
-    def queue(
-        self,
-        metric_name: str,
-        metric_type: str,
-        value: str,
-        *,
-        tags: Mapping[str, str] | None = None,
-    ) -> None:
-        self.batch.append(
-            self.inner._serialize_metric(
-                metric_name,
-                metric_type,
-                value,
-                sample_rate=self.sample_rate,
-                tags=tags,
-            ),
-        )
-
-    def __enter__(self) -> _Batcher:
-        return self
-
-    def __exit__(self, *args: Any) -> None:
-        self.flush()
 
 
 class DebugStatsdClient(BaseStatsdClient):
@@ -487,10 +163,11 @@ class DebugStatsdClient(BaseStatsdClient):
         self.logger = logger
         self.inner = inner
 
-    def _emit_packet(self, packet: str) -> None:
-        self.logger.log(self.level, "> %s", packet)
+    def _emit(self, packets: list[str]) -> None:
+        for packet in packets:
+            self.logger.log(self.level, "> %s", packet)
         if self.inner:
-            self.inner._emit_packet(packet)
+            self.inner._emit(packets)
 
 
 class UDPStatsdClient(BaseStatsdClient):
@@ -545,6 +222,11 @@ class UDPStatsdClient(BaseStatsdClient):
         self.port = port
         self.sock: socket.socket | None = None
 
+    def _emit(self, packets: list[str]) -> None:
+        with self.lock:
+            for x in packets:
+                self._emit_packet(x)
+
     def _socket(self) -> socket.socket:
         """Lazily instantiate the socket, this should only happen once."""
         if self.sock is None:
@@ -575,25 +257,24 @@ class UDPStatsdClient(BaseStatsdClient):
 
     def _emit_packet(self, packet: str) -> None:
         """Handle metric packets, buffering and flusing the buffer accordingly."""
-        with self.lock:
-            msg = packet.encode("ascii")
+        msg = packet.encode("ascii")
 
-            # Buffering disabled, send immediately.
-            if not self.max_buffer_size:
-                return self._send(msg)
+        # Buffering disabled, send immediately.
+        if not self.max_buffer_size:
+            return self._send(msg)
 
-            msg_size = len(msg)
+        msg_size = len(msg)
 
-            would_overflow = (
-                self.buffer_size + len(self.buffer) + msg_size
-                > self.max_buffer_size
-            )
+        would_overflow = (
+            self.buffer_size + len(self.buffer) + msg_size
+            > self.max_buffer_size
+        )
 
-            if would_overflow:
-                self._flush_buffer()
+        if would_overflow:
+            self._flush_buffer()
 
-            self.buffer.append(msg)
-            self.buffer_size += msg_size
+        self.buffer.append(msg)
+        self.buffer_size += msg_size
 
     def _send(self, data: bytes) -> None:
         """Actually send data."""
