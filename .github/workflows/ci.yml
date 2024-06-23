@@ -31,6 +31,7 @@ jobs:
         with:
           python: ${{ matrix.python }}
       - name: Run typechecking
+        if: ${{ !startsWith(matrix.python, 'pypy') }}
         run: |
             nox -ts --python=${{ matrix.python }} -e mypy
       - name: Run tests
