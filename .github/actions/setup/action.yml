@@ -1,0 +1,32 @@
+name: Setup
+description: Setup dependencies
+
+inputs:
+  python:
+    description: Python version
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python ${{ inputs.python }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python }}
+        cache: 'pip'
+        cache-dependency-path: |
+          requirements/*.txt'
+    - name: Cache .nox directory
+      uses: actions/cache@v4
+      with:
+          path: .nox
+          key: ${{ runner.os }}-nox-${{ inputs.python }}
+    - name: Cache uv
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: ${{ runner.os }}-uv-${{ inputs.python }}
+    - name: Install dependencies
+      shell: bash
+      run: |
+        pip install --upgrade pip -r requirements/dev.txt

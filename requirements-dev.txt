@@ -1,9 +1,7 @@
-tox~=3.20
-
--r requirements-lint.txt
--r requirements-tests.txt
--r requirements-build.txt
--r requirements-docs.txt
--r requirements-fmt.txt
+-r requirements/dev.txt
+-r requirements/build.txt
+-r requirements/lint.txt
+-r requirements/test.txt
+-r requirements/docs.txt
 
 -e .
