@@ -59,7 +59,6 @@ artifacts = ["docs/build"]
 no-emit-package = ["setuptools", "pip", "wheel"]
 no-strip-extras = true
 emit-index-url = true
-python-version = "3.8"  # minimum
 
 [tool.isort]
 indent = 4

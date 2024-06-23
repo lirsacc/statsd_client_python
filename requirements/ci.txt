@@ -16,8 +16,6 @@ packaging==24.1
     # via nox
 platformdirs==4.2.2
     # via virtualenv
-tomli==2.0.1
-    # via nox
 uv==0.2.13
     # via -r requirements/ci.in
 virtualenv==20.26.3
