@@ -1,6 +1,49 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "statsd_python"
+authors = [
+    { name = "Charles Lirsac", email = "code@lirsac.com" }
+]
+license = "MIT"
+description = ""
+readme = {"file" = "README.md", "content-type" = "text/markdown"}
+keywords = ["statsd", "metrics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dynamic = ["version"]
+
+requires-python = ">=3.8"
+
+dependencies = []
+
+[project.urls]
+"Bug Reports" = "https://github.com/lirsacc/statsd_client_python/issues"
+"Source" = "https://github.com/lirsacc/statsd_client_python"
+
+[tool.hatch.version]
+path = "src/statsd/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/statsd_python"]
 
 [tool.black]
 line-length = 80
