@@ -129,7 +129,7 @@ class BaseStatsdClient(abc.ABC):
                 value,
                 sample_rate=sample_rate,
                 tags=tags,
-            )
+            ),
         )
 
     def serialize_metric(
@@ -438,7 +438,7 @@ class _Batcher:
                 value,
                 sample_rate=self.sample_rate,
                 tags=tags,
-            )
+            ),
         )
 
     def __enter__(self) -> "_Batcher":
@@ -544,7 +544,10 @@ class UDPStatsdClient(BaseStatsdClient):
         if self.sock is None:
             with self.lock:
                 family, _, _, _, addr = socket.getaddrinfo(
-                    self.host, self.port, socket.AF_INET, socket.SOCK_DGRAM
+                    self.host,
+                    self.port,
+                    socket.AF_INET,
+                    socket.SOCK_DGRAM,
                 )[0]
 
                 self.sock = socket.socket(family, socket.SOCK_DGRAM)

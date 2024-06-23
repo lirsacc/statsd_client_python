@@ -76,7 +76,10 @@ SIMPLE_TEST_CASES: List[
 
 @pytest.mark.parametrize("method,args,kwargs,expected", SIMPLE_TEST_CASES)
 def test_basic_metrics(
-    method: str, args: Tuple[Any, ...], kwargs: Dict[str, Any], expected: str
+    method: str,
+    args: Tuple[Any, ...],
+    kwargs: Dict[str, Any],
+    expected: str,
 ) -> None:
     assert_emits(MockClient(), method, args, kwargs, expected)
 
@@ -96,7 +99,10 @@ def test_sample_rate_out():
     client = MockClient()
     with mock.patch("random.random", side_effect=lambda: 0.75):
         assert_does_not_emit(
-            client, "increment", ("foo", 5), {"sample_rate": 0.5}
+            client,
+            "increment",
+            ("foo", 5),
+            {"sample_rate": 0.5},
         )
 
 
@@ -175,7 +181,10 @@ def test_batched_messages_are_sampled_as_one_out():
     ],
 )
 def test_basic_with_tags(
-    method: str, args: Tuple[Any, ...], kwargs: Dict[str, Any], expected: str
+    method: str,
+    args: Tuple[Any, ...],
+    kwargs: Dict[str, Any],
+    expected: str,
 ) -> None:
     tags = {"foo": "1", "bar": "value"}
     assert_emits(MockClient(), method, args, {**kwargs, "tags": tags}, expected)
@@ -194,7 +203,10 @@ def test_basic_with_tags(
     ],
 )
 def test_default_tags(
-    method: str, args: Tuple[Any, ...], kwargs: Dict[str, Any], expected: str
+    method: str,
+    args: Tuple[Any, ...],
+    kwargs: Dict[str, Any],
+    expected: str,
 ) -> None:
     tags = {"foo": "1", "bar": "value"}
     assert_emits(MockClient(tags=tags), method, args, {**kwargs}, expected)
@@ -219,7 +231,8 @@ def test_timed_decorator():
         pass
 
     with mock.patch(
-        "time.perf_counter", side_effect=[7.886838544, 20.181117592]
+        "time.perf_counter",
+        side_effect=[7.886838544, 20.181117592],
     ):
         fn()
 
@@ -234,7 +247,8 @@ def test_timed_decorator_use_distribution():
         pass
 
     with mock.patch(
-        "time.perf_counter", side_effect=[7.886838544, 20.181117592]
+        "time.perf_counter",
+        side_effect=[7.886838544, 20.181117592],
     ):
         fn()
 
@@ -284,7 +298,8 @@ def test_debug_client_custom_logger_and_level(
     caplog: Any,
 ) -> None:
     client = DebugStatsdClient(
-        logger=logging.getLogger("foo"), level=logging.DEBUG
+        logger=logging.getLogger("foo"),
+        level=logging.DEBUG,
     )
     with caplog.at_level(logging.DEBUG, logger="foo"):
         getattr(client, method)(*args, **kwargs)

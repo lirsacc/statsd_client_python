@@ -132,7 +132,7 @@ class _AppendToNameSerializer(Serializer):
                     for key, value in tags.items()
                     if key
                 ),
-            ]
+            ],
         )
         return (
             f"{joined}:{value}|{metric_type}"

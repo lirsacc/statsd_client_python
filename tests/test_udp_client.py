@@ -86,7 +86,7 @@ def test_broken_pipe(receiver_socket: socket.socket, caplog: Any) -> None:
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
 
     with mock.patch("socket.socket.send", side_effect=[2]), caplog.at_level(
-        logging.WARNING
+        logging.WARNING,
     ):
         # Should not raise.
         client.increment("foo", 1)
@@ -96,13 +96,15 @@ def test_broken_pipe(receiver_socket: socket.socket, caplog: Any) -> None:
 
 
 def test_socket_errors_are_logged_not_raised(
-    receiver_socket: socket.socket, caplog: Any
+    receiver_socket: socket.socket,
+    caplog: Any,
 ) -> None:
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
 
     with mock.patch(
-        "socket.socket.send", side_effect=[socket.error("Broken socket")]
+        "socket.socket.send",
+        side_effect=[socket.error("Broken socket")],
     ), caplog.at_level(logging.WARNING):
         # Should not raise.
         client.increment("foo", 1)
@@ -112,13 +114,15 @@ def test_socket_errors_are_logged_not_raised(
 
 
 def test_unexpected_exceptions_are_logged_not_raised(
-    receiver_socket: socket.socket, caplog: Any
+    receiver_socket: socket.socket,
+    caplog: Any,
 ) -> None:
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
 
     with mock.patch(
-        "socket.socket.send", side_effect=[ValueError("Random error")]
+        "socket.socket.send",
+        side_effect=[ValueError("Random error")],
     ), caplog.at_level(logging.ERROR):
         # Should not raise.
         client.increment("foo", 1)
@@ -135,7 +139,8 @@ def test_close_before_anything_happened(receiver_socket: socket.socket) -> None:
 
 
 def test_call_after_close_raises(
-    receiver_socket: socket.socket, caplog: Any
+    receiver_socket: socket.socket,
+    caplog: Any,
 ) -> None:
     host, port = receiver_socket.getsockname()
     client = StatsdClient(host=host, port=port, max_buffer_size=0)
