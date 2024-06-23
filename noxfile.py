@@ -187,7 +187,7 @@ def clean(session: nox.Session) -> None:
         'find . -type f -name "junit*.xml" -delete',
         "rm -rf htmlcov",
         'find . -type f -name "coverage*.xml" -delete',
-        'find . -type f -name ".coverage*" -delete',
+        'find . -type f -name "coverage*" -delete',
         'find . -type f -name "flake8.*" -delete',
         "rm -rf dist build docs/build",
     ]:
