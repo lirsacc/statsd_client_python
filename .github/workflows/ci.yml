@@ -18,7 +18,7 @@ jobs:
         # Temporarily disabled so I get CI up and running and I can fix the new
         # lint errors separately.
         run: |
-            nox -ts --python=3.12 --tags lint || true
+            nox -ts --python=3.12 --tags lint
   check:
     runs-on: ubuntu-latest
     strategy:
