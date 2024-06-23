@@ -14,6 +14,7 @@ ALL_PYTHON_VERSIONS = (
     "3.10",
     "3.11",
     "3.12",
+    "3.13",
     "pypy3.9",
     "pypy3.10",
 )
@@ -63,7 +64,7 @@ def check_imports(session: nox.Session) -> None:
     session.run("isort", *(session.posargs or DEFAULT_LINT_TARGETS), "--check")
 
 
-@nox.session(python=DEFAULT_PYTHON_VERSION, tags=["lint", "check"])
+@nox.session(python=ALL_PYTHON_VERSIONS, tags=["lint", "check"])
 def lint(session: nox.Session) -> None:
     """
     Run the ruff linter

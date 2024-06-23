@@ -9,22 +9,26 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
-          python: "3.12"
+          python: ${{ matrix.python }}
       - name: Run linters
         # Temporarily disabled so I get CI up and running and I can fix the new
         # lint errors separately.
         run: |
-            nox -ts --python=3.12 --tags lint
+            nox -ts --python=${{ matrix.python }} --tags lint
   check:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "pypy3.9", "pypy3.10"]
+        python: ["3.9", "3.10", "3.11", "3.12", "pypy3.9", "pypy3.10", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
