@@ -117,7 +117,8 @@ select = [
     "YTT",
     "G",
 
-    # "D",  # pydocstyle
+    "D",  # pydocstyle
+    "D213",
 
     "UP",  # pyupgrade
 
@@ -140,10 +141,26 @@ select = [
 ignore = [
     "I",    # we use isort
     "ANN401",
+
+    "D100",
+    "D105",
+    "D107",
+    "D212",
 ]
 
 unfixable = [
     "B", # Avoid trying to fix flake8-bugbear (`B`) violations.
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"noxfile.py" = [
+    "D",
+]
+"tests/**/*.py" = [
+    "D",
 ]
 
 [tool.ruff.lint.flake8-quotes]

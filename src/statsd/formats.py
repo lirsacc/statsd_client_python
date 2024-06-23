@@ -46,9 +46,7 @@ class Serializer(abc.ABC):
         sample_rate: float,
         tags: Mapping[str, str] = {},
     ) -> str:
-        """
-        Return a serialized packet to be sent to the Statsd server.
-        """
+        """Return a serialized packet to be sent to the Statsd server."""
         raise NotImplementedError()
 
 
@@ -79,7 +77,7 @@ GetMetricsInStatsd>`_.
     - It's the format used by `Vector <https://vector.dev/>`_.
     """
 
-    def format_tags(self, tags: Mapping[str, str]) -> str:
+    def _format_tags(self, tags: Mapping[str, str]) -> str:
         if not tags:
             return ""
 
@@ -102,10 +100,11 @@ GetMetricsInStatsd>`_.
         sample_rate: float,
         tags: Mapping[str, str] = {},
     ) -> str:
+        """Return a serialized packet to be sent to the Statsd server."""
         return (
             f"{metric_name}:{value}|{metric_type}"
             f"{f'|@{sample_rate}' if sample_rate < 1 else ''}"
-            f"{self.format_tags(tags)}"
+            f"{self._format_tags(tags)}"
         )
 
 
@@ -120,6 +119,7 @@ class _AppendToNameSerializer(Serializer):
         sample_rate: float,
         tags: Mapping[str, str] = {},
     ) -> str:
+        """Return a serialized packet to be sent to the Statsd server."""
         # Graphite and InfluxDB will refuse the metric if a tag has no value.
         missing_tag_values = [k for k, v in tags.items() if not v]
         if missing_tag_values:

@@ -1,3 +1,4 @@
+# ruff: noqa: D101
 from __future__ import annotations
 
 

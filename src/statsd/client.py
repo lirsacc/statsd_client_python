@@ -119,7 +119,7 @@ class BaseStatsdClient(abc.ABC):
             return
 
         self._emit_packet(
-            self.serialize_metric(
+            self._serialize_metric(
                 metric_name,
                 metric_type,
                 value,
@@ -128,7 +128,7 @@ class BaseStatsdClient(abc.ABC):
             ),
         )
 
-    def serialize_metric(
+    def _serialize_metric(
         self,
         metric_name: str,
         metric_type: str,
@@ -264,7 +264,7 @@ class BaseStatsdClient(abc.ABC):
         use_distribution: bool = False,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
-        Decorator to record a function's execution time.
+        Wrap a function to record its execution time.
 
         This just wraps the function call with a :meth:`timer` context manager.
 
@@ -347,6 +347,7 @@ class BaseStatsdClient(abc.ABC):
         tags: Mapping[str, str] | None = None,
         sample_rate: float | None = None,
     ) -> None:
+        """Update a set counter."""
         self.emit(name, "s", str(value), tags=tags, sample_rate=sample_rate)
 
     def histogram(
@@ -439,7 +440,7 @@ class _Batcher:
         tags: Mapping[str, str] | None = None,
     ) -> None:
         self.batch.append(
-            self.inner.serialize_metric(
+            self.inner._serialize_metric(
                 metric_name,
                 metric_type,
                 value,
@@ -545,9 +546,7 @@ class UDPStatsdClient(BaseStatsdClient):
         self.sock: socket.socket | None = None
 
     def _socket(self) -> socket.socket:
-        """
-        Lazily instantiate the socket, this should only happen once.
-        """
+        """Lazily instantiate the socket, this should only happen once."""
         if self.sock is None:
             with self.lock:
                 family, _, _, _, addr = socket.getaddrinfo(
@@ -565,9 +564,7 @@ class UDPStatsdClient(BaseStatsdClient):
             return self.sock
 
     def _flush_buffer(self) -> None:
-        """
-        If there is data in the buffer, send it and reset the buffer.
-        """
+        """If there is data in the buffer, send it and reset the buffer."""
         with self.lock:
             if not self.buffer:
                 return
@@ -577,9 +574,7 @@ class UDPStatsdClient(BaseStatsdClient):
             self.buffer_size = 0
 
     def _emit_packet(self, packet: str) -> None:
-        """
-        Handle metric packets, buffering and flusing the buffer accordingly.
-        """
+        """Handle metric packets, buffering and flusing the buffer accordingly."""
         with self.lock:
             msg = packet.encode("ascii")
 
@@ -601,9 +596,7 @@ class UDPStatsdClient(BaseStatsdClient):
             self.buffer_size += msg_size
 
     def _send(self, data: bytes) -> None:
-        """
-        Actually send data.
-        """
+        """Actually send data."""
         # No lock this is only called from locked region. No guarantees if this
         # is called manually.
         if self.closed:
@@ -623,6 +616,7 @@ class UDPStatsdClient(BaseStatsdClient):
     def _close(self) -> None:
         """
         Close the underlying socket and refuse any new attempt to send packets.
+
         This will first flush the current buffer if there is data left to send.
         """
         with self.lock:
