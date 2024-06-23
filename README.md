@@ -72,3 +72,7 @@ you can install all development dependencies through
     $ pip install -r requirements-dev.txt
 
 After which all tools (`ruff`, `isort`, `pytest`, etc.) will be available.
+
+### pre-commit
+
+If this suits your workflow, you can install the pre-commit configuration using `pre-commit install` which will automatically check some things before allowing you to commit (`pre-commit` is included in the dev dependencies).

@@ -4,8 +4,13 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-import importlib.metadata
+# isort: skip_file
+# mypy: ignore-errors
+# ruff: noqa
+
 import datetime
+import importlib.metadata
+
 
 # -- Path setup --------------------------------------------------------------
 
