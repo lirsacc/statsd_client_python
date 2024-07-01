@@ -1,2 +1,2 @@
 build
-twine ~= 4.0
+twine ~= 5.1
