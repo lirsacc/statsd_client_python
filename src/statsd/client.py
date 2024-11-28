@@ -10,11 +10,15 @@ import random
 import socket
 import threading
 import time
-from typing import Any, Callable, Iterator, Mapping, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 from typing_extensions import ParamSpec
 
 from statsd.exceptions import InvalidMetricType, InvalidSampleRate
 from statsd.formats import DefaultSerializer, Serializer
+
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Mapping
 
 
 P = ParamSpec("P")
